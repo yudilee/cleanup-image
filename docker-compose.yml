@@ -5,6 +5,8 @@ services:
       args:
         # Change this to 'rocm' for AMD GPUs
         DEVICE_TYPE: ${DEVICE_TYPE:-cuda}
+        # Set to 'true' if you have an older GPU (GTX 9xx/10xx) and see "capability is too old" errors
+        LEGACY_GPU: "true"
     ports:
       - "8000:8000"
     deploy:

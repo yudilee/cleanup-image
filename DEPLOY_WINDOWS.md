@@ -78,3 +78,8 @@ Use this if you don't want to use Docker.
     2.  Run `wsl --shutdown`.
     3.  Restart Docker Desktop.
 - **Port Conflicts**: Ensure ports 3000 and 8000 are free.
+- **"GPU Compute Capability is too old" Warning**:
+    - If you see a warning like `Found GPU0 NVIDIA GeForce GTX 950M... Falling back to CPU`, this is **normal**.
+    - It means your GPU is older than what the latest AI frameworks support by default.
+    - **The app will still work fine!** It will just use your CPU instead of GPU. It might be slightly slower, but fully functional.
+    - You can proceed to open [http://localhost:3000](http://localhost:3000).

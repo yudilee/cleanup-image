@@ -13,13 +13,16 @@ COPY requirements.txt .
 
 # Argument to select device type: 'cuda' (default) or 'rocm'
 ARG DEVICE_TYPE=cuda
+ARG LEGACY_GPU=false
 
-# Install PyTorch based on DEVICE_TYPE
-# Note: For ROCm, we might need a different base image or specific pip index.
-# This approach tries to keep it simple within a standard python image.
+# Install PyTorch based on DEVICE_TYPE and LEGACY_GPU
 RUN if [ "$DEVICE_TYPE" = "rocm" ]; then \
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.2; \
+    elif [ "$LEGACY_GPU" = "true" ]; then \
+    # For older NVIDIA GPUs (GTX 9xx / Maxwell / Pascal), use CUDA 11.8 which supports sm_50
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118; \
     else \
+    # Default: Latest PyTorch (likely CUDA 12.x)
     pip install torch torchvision torchaudio; \
     fi
 
