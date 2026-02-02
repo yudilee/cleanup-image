@@ -73,15 +73,9 @@ export default function Home() {
     setHistory([url]);
   }, []);
 
-  // Helper to get API URL
-  const getApiUrl = () => {
-    if (typeof window === 'undefined') return 'http://localhost:8000';
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
-  };
-
   // Fetch device info on mount
   useEffect(() => {
-    axios.get(`${getApiUrl()}/device`)
+    axios.get('/api/device')
       .then(res => setDeviceInfo(res.data.device_name))
       .catch(() => setDeviceInfo('Backend offline'));
   }, []);
@@ -207,7 +201,7 @@ export default function Home() {
     formData.append("mask", maskBlob, "mask.png");
 
     try {
-      const response = await axios.post(`${getApiUrl()}/inpaint?quality=${qualityPreset}`, formData, {
+      const response = await axios.post(`/api/inpaint?quality=${qualityPreset}`, formData, {
         responseType: "blob",
         onUploadProgress: (progressEvent) => {
           // Could add upload progress here if needed
@@ -285,7 +279,7 @@ export default function Home() {
     formData.append("image", imageFile);
 
     try {
-      const response = await axios.post(`${getApiUrl()}/auto-mask?invert=true`, formData, {
+      const response = await axios.post('/api/auto-mask?invert=true', formData, {
         responseType: "blob",
       });
 
@@ -316,7 +310,7 @@ export default function Home() {
     formData.append("mask", maskBlob, "mask.png");
 
     try {
-      const response = await axios.post(`${getApiUrl()}/refine-edges`, formData, {
+      const response = await axios.post('/api/refine-edges', formData, {
         responseType: "blob",
       });
 
@@ -339,7 +333,7 @@ export default function Home() {
     formData.append("image", imageFile);
 
     try {
-      const response = await axios.post(`${getApiUrl()}/remove-background`, formData, {
+      const response = await axios.post('/api/remove-background', formData, {
         responseType: "blob",
       });
 
@@ -368,7 +362,7 @@ export default function Home() {
     formData.append("background", bgFile);
 
     try {
-      const response = await axios.post(`${getApiUrl()}/replace-background`, formData, {
+      const response = await axios.post('/api/replace-background', formData, {
         responseType: "blob",
       });
 
@@ -405,7 +399,7 @@ export default function Home() {
     });
 
     try {
-      const response = await axios.post(`${getApiUrl()}/outpaint?${params}`, formData, {
+      const response = await axios.post(`/api/outpaint?${params}`, formData, {
         responseType: "blob",
       });
 
@@ -441,7 +435,7 @@ export default function Home() {
 
     try {
       const response = await axios.post(
-        `${getApiUrl()}/batch-inpaint?quality=${qualityPreset}`,
+        `/api/batch-inpaint?quality=${qualityPreset}`,
         formData,
         { responseType: "blob" }
       );
