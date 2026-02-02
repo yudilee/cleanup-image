@@ -32,7 +32,7 @@ export default function Home() {
   const [jpegQuality, setJpegQuality] = useState(80);
 
   // Quality preset
-  const [qualityPreset, setQualityPreset] = useState<'fast' | 'balanced' | 'high'>('balanced');
+  const [qualityPreset, setQualityPreset] = useState<'fast' | 'balanced' | 'high'>('high');
   const [deviceInfo, setDeviceInfo] = useState<string>('Loading...');
 
   // History for undo
