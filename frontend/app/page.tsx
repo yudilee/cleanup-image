@@ -28,8 +28,8 @@ export default function Home() {
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
 
   // Export format
-  const [exportFormat, setExportFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
-  const [jpegQuality, setJpegQuality] = useState(90);
+  const [exportFormat, setExportFormat] = useState<'png' | 'jpeg' | 'webp'>('jpeg');
+  const [jpegQuality, setJpegQuality] = useState(80);
 
   // Quality preset
   const [qualityPreset, setQualityPreset] = useState<'fast' | 'balanced' | 'high'>('balanced');
@@ -187,6 +187,46 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [maskBlob, loading, history]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDownload = async () => {
+    if (!imageSrc) return;
+
+    // If format is PNG, we can just download the blob directly if it's already PNG
+    // But since backend always returns PNG, and we want to allow conversion:
+
+    const img = new Image();
+    img.src = imageSrc;
+    await new Promise((resolve) => { img.onload = resolve; });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Fill white background for JPEG (since transparency becomes black)
+    if (exportFormat === 'jpeg') {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    ctx.drawImage(img, 0, 0);
+
+    const mimeType = `image/${exportFormat}`;
+    const quality = (exportFormat === 'jpeg' || exportFormat === 'webp') ? jpegQuality / 100 : undefined;
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cleaned_image.${exportFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, mimeType, quality);
+  };
 
   const handleClean = async () => {
     if (!imageFile || !maskBlob) return;
@@ -754,14 +794,13 @@ export default function Home() {
               </div>
             )}
 
-            <a
-              href={imageSrc}
-              download={`cleaned_image.${exportFormat}`}
+            <button
+              onClick={handleDownload}
               className="p-2 rounded-lg hover:bg-neutral-700 text-white transition"
               title="Download current"
             >
               <Download size={20} />
-            </a>
+            </button>
 
             {/* Batch Process Button */}
             <button
