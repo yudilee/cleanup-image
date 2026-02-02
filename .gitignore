@@ -1,0 +1,26 @@
+# General
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+
+# Backend (Python)
+backend/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/.env
+backend/.pytest_cache/
+backend/downloads/  # If model downloads go here
+*.spec
+
+# Docker
+.docker_env
+
+# Local artifacts
+task.md

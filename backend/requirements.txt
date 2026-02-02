@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+python-multipart
+simple-lama-inpainting
+pillow
+numpy
+rembg
+opencv-python-headless
