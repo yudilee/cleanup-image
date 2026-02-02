@@ -54,48 +54,63 @@ async def inpaint(
     mask: UploadFile = File(...),
     quality: Optional[str] = Query("balanced", description="Quality preset: fast, balanced, high")
 ):
-    # Read image
-    image_data = await image.read()
-    image_pil = Image.open(BytesIO(image_data)).convert("RGB")
-    original_size = image_pil.size
+    print(f"DEBUG: Starting inpaint request. Quality: {quality}")
+    try:
+        # Read image
+        image_data = await image.read()
+        image_pil = Image.open(BytesIO(image_data)).convert("RGB")
+        original_size = image_pil.size
+        print(f"DEBUG: Image loaded. Size: {original_size}")
 
-    # Read mask
-    mask_data = await mask.read()
-    mask_pil = Image.open(BytesIO(mask_data)).convert("L")  # Mask should be grayscale
+        # Read mask
+        mask_data = await mask.read()
+        mask_pil = Image.open(BytesIO(mask_data)).convert("L")  # Mask should be grayscale
+        print(f"DEBUG: Mask loaded. Size: {mask_pil.size}")
 
-    # Resize mask to match image size (if they differ)
-    if mask_pil.size != image_pil.size:
-        # Use Bilinear to output smooth edges, then threshold to binary
-        # This prevents blocky 'staircase' edges when upscaling
-        mask_pil = mask_pil.resize(image_pil.size, Image.BILINEAR)
-        mask_np = np.array(mask_pil)
-        mask_np = (mask_np > 127).astype(np.uint8) * 255
-        mask_pil = Image.fromarray(mask_np)
+        # Resize mask to match image size (if they differ)
+        if mask_pil.size != image_pil.size:
+            print("DEBUG: Resizing mask...")
+            # Use Bilinear to output smooth edges, then threshold to binary
+            # This prevents blocky 'staircase' edges when upscaling
+            mask_pil = mask_pil.resize(image_pil.size, Image.BILINEAR)
+            mask_np = np.array(mask_pil)
+            mask_np = (mask_np > 127).astype(np.uint8) * 255
+            mask_pil = Image.fromarray(mask_np)
 
-    # Apply quality preset - resize if image exceeds max dimension
-    max_dim = QUALITY_PRESETS.get(quality, QUALITY_PRESETS["balanced"])
-    w, h = image_pil.size
+        # Apply quality preset - resize if image exceeds max dimension
+        max_dim = QUALITY_PRESETS.get(quality, QUALITY_PRESETS["balanced"])
+        w, h = image_pil.size
+        
+        if max(w, h) > max_dim:
+            print(f"DEBUG: Resizing image to max_dim {max_dim}")
+            scale = max_dim / max(w, h)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            image_pil = image_pil.resize((new_w, new_h), Image.LANCZOS)
+            mask_pil = mask_pil.resize((new_w, new_h), Image.NEAREST)
+
+        # Process
+        print("DEBUG: Running inpainting_model.process...")
+        result_pil = inpainting_model.process(image_pil, mask_pil)
+        print("DEBUG: Processing complete.")
+
+        # Resize back to original size if we downscaled
+        if result_pil.size != original_size:
+            result_pil = result_pil.resize(original_size, Image.LANCZOS)
+
+        # Return result
+        output = BytesIO()
+        result_pil.save(output, format="PNG")
+        output.seek(0)
+
+        print("DEBUG: Returning response.")
+        return StreamingResponse(output, media_type="image/png")
     
-    if max(w, h) > max_dim:
-        scale = max_dim / max(w, h)
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-        image_pil = image_pil.resize((new_w, new_h), Image.LANCZOS)
-        mask_pil = mask_pil.resize((new_w, new_h), Image.NEAREST)
-
-    # Process
-    result_pil = inpainting_model.process(image_pil, mask_pil)
-
-    # Resize back to original size if we downscaled
-    if result_pil.size != original_size:
-        result_pil = result_pil.resize(original_size, Image.LANCZOS)
-
-    # Return result
-    output = BytesIO()
-    result_pil.save(output, format="PNG")
-    output.seek(0)
-
-    return StreamingResponse(output, media_type="image/png")
+    except Exception as e:
+        import traceback
+        print(f"ERROR in inpaint: {e}")
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"message": str(e), "detail": traceback.format_exc()})
 
 
 # ============ PHASE 5: AI FEATURES ============
