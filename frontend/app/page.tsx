@@ -73,16 +73,26 @@ export default function Home() {
     setHistory([url]);
   }, []);
 
-  // Direct backend connection to avoid Next.js proxy timeouts (which cap at ~30s)
-  // and resolve Docker networking issues (browser can hit localhost:8000, but container cannot hit 127.0.0.1:8000)
-  const API_BASE = "http://localhost:8000";
+  // Direct backend connection to avoid Next.js proxy timeouts.
+  // Dynamically determine host to allow access via IP (not just localhost)
+  const [apiBase, setApiBase] = useState("http://localhost:8000");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const port = "8000";
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      setApiBase(`${protocol}//${hostname}:${port}`);
+    }
+  }, []);
 
   // Fetch device info on mount
   useEffect(() => {
-    axios.get(`${API_BASE}/device`)
+    // Only fetch once we have confirmed the apiBase (though default is fine logistically)
+    axios.get(`${apiBase}/device`)
       .then(res => setDeviceInfo(res.data.device_name))
       .catch(() => setDeviceInfo('Backend offline'));
-  }, []);
+  }, [apiBase]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -245,7 +255,7 @@ export default function Home() {
     formData.append("mask", maskBlob, "mask.png");
 
     try {
-      const response = await axios.post(`${API_BASE}/inpaint?quality=${qualityPreset}`, formData, {
+      const response = await axios.post(`${apiBase}/inpaint?quality=${qualityPreset}`, formData, {
         responseType: "blob",
         timeout: 300000, // 5 minutes timeout for CPU processing
         onUploadProgress: (progressEvent) => {
@@ -325,7 +335,7 @@ export default function Home() {
     formData.append("image", imageFile);
 
     try {
-      const response = await axios.post(`${API_BASE}/auto-mask?invert=true`, formData, {
+      const response = await axios.post(`${apiBase}/auto-mask?invert=true`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -357,7 +367,7 @@ export default function Home() {
     formData.append("mask", maskBlob, "mask.png");
 
     try {
-      const response = await axios.post(`${API_BASE}/refine-edges`, formData, {
+      const response = await axios.post(`${apiBase}/refine-edges`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -381,7 +391,7 @@ export default function Home() {
     formData.append("image", imageFile);
 
     try {
-      const response = await axios.post(`${API_BASE}/remove-background`, formData, {
+      const response = await axios.post(`${apiBase}/remove-background`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -411,7 +421,7 @@ export default function Home() {
     formData.append("background", bgFile);
 
     try {
-      const response = await axios.post(`${API_BASE}/replace-background`, formData, {
+      const response = await axios.post(`${apiBase}/replace-background`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -449,7 +459,7 @@ export default function Home() {
     });
 
     try {
-      const response = await axios.post(`${API_BASE}/outpaint?${params}`, formData, {
+      const response = await axios.post(`${apiBase}/outpaint?${params}`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -486,7 +496,7 @@ export default function Home() {
 
     try {
       const response = await axios.post(
-        `${API_BASE}/batch-inpaint?quality=${qualityPreset}`,
+        `${apiBase}/batch-inpaint?quality=${qualityPreset}`,
         formData,
         {
           responseType: "blob",
