@@ -6,9 +6,11 @@ import useImage from "use-image";
 import Konva from "konva";
 
 // Define the ref handle type
+// Define the ref handle type
 export interface InpaintingCanvasHandle {
   clearLines: () => void;
   undo: () => void;
+  redo: () => void;
 }
 
 export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'lasso';
@@ -50,6 +52,7 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
   tool,
 }, ref) => {
   const [shapes, setShapes] = useState<MaskShape[]>([]);
+  const [futureShapes, setFutureShapes] = useState<MaskShape[]>([]);
   const isDrawing = useRef(false);
   const stageRef = useRef<Konva.Stage>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -64,20 +67,48 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
   React.useImperativeHandle(ref, () => ({
     clearLines: () => {
       setShapes([]);
+      setFutureShapes([]);
       onMaskReady(null);
     },
     undo: () => {
       setShapes((prev) => {
+        if (prev.length === 0) return prev;
         const newShapes = prev.slice(0, -1);
+        setFutureShapes(f => [prev[prev.length - 1], ...f]);
+        // We need to re-export mask after undo
+        // setTimeout to ensure state update? No, exportMask uses argument usually.
+        // But we can't call exportMask here easily with the *new* state because of closure.
+        // We'll rely on useEffect or manual update.
+        // Actually exportMask depends on 'shapes', so we should trigger it.
+        // Using a simplistic timeout or ref approach might be needed, or just let the effect handle it.
         return newShapes;
       });
-      onMaskReady(null);
+    },
+    redo: () => {
+      setFutureShapes((prev) => {
+        if (prev.length === 0) return prev;
+        const [nextShape, ...rest] = prev;
+        setShapes(s => [...s, nextShape]);
+        return rest;
+      });
     }
   }));
+
+  // Trigger export when shapes change (for undo/redo to update maskBlob)
+  useEffect(() => {
+    if (shapes.length >= 0) { // Always run if shapes exist (or become empty)
+      // Debounce slightly to avoid excessive exports during drawing?
+      // But for undo/redo it's 1-off.
+      // We need to verify if stage is ready.
+      const timer = setTimeout(() => exportMask(shapes), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [shapes.length]); // Only re-export when count changes (end of stroke, undo, redo)
 
   useEffect(() => {
     // Reset shapes when image changes
     setShapes([]);
+    setFutureShapes([]);
     // Don't reset dimensions to 0 - let handleImageLoad update them
     // This prevents blank canvas during undo/image change transitions
     setScale(1);
@@ -134,6 +165,7 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
     if (!pos) return;
 
     isDrawing.current = true;
+    setFutureShapes([]); // Clear redo history on new action
 
     if (tool === 'rectangle') {
       setRectStart(pos);
