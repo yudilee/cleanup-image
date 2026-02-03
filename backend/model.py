@@ -10,8 +10,8 @@ class InpaintingModel:
                 # Check for compatibility (latest PyTorch drops support for < 7.0 usually)
                 cap = torch.cuda.get_device_capability()
                 major, minor = cap
-                if major < 7:
-                    print(f"Warning: GPU Compute Capability {major}.{minor} is too old (needs 7.0+). Falling back to CPU.")
+                if major < 5:
+                    print(f"Warning: GPU Compute Capability {major}.{minor} is too old (needs 5.0+). Falling back to CPU.")
                     self.device = "cpu"
                 else:
                     self.device = "cuda"
