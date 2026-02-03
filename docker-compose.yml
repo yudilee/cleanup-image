@@ -29,6 +29,7 @@ services:
       - ./docker_data/u2net:/root/.u2net
     environment:
       - PYTHONUNBUFFERED=1
+      - FORCE_CPU=true
 
   frontend:
     build:

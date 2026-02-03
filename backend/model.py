@@ -2,10 +2,17 @@ from simple_lama_inpainting import SimpleLama
 from PIL import Image
 import torch
 
+import os
+
 class InpaintingModel:
     def __init__(self):
         self.device = "cpu"
-        if torch.cuda.is_available():
+        
+        # Check for forced CPU mode
+        if os.environ.get("FORCE_CPU", "false").lower() == "true":
+            print("Force CPU mode enabled. Using CPU.")
+            self.device = "cpu"
+        elif torch.cuda.is_available():
             try:
                 # Check for compatibility (latest PyTorch drops support for < 7.0 usually)
                 cap = torch.cuda.get_device_capability()
