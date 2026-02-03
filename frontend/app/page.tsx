@@ -246,15 +246,30 @@ export default function Home() {
     formData.append("mask", maskBlob, "mask.png");
 
     try {
-      const response = await axios.post(`${API_BASE}/inpaint?quality=${qualityPreset}`, formData, {
-        responseType: "blob",
-        timeout: 300000, // 5 minutes timeout for CPU processing
-        onUploadProgress: (progressEvent) => {
-          // Could add upload progress here if needed
-        },
-      });
+      // 1. Submit Job
+      const response = await axios.post(`${API_BASE}/inpaint?quality=${qualityPreset}`, formData);
+      const { job_id } = response.data;
 
-      const newImageBlob = response.data;
+      // 2. Poll Status
+      let resultBlob: Blob | null = null;
+      while (true) {
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2s
+        const statusRes = await axios.get(`${API_BASE}/jobs/${job_id}`);
+        const status = statusRes.data.status;
+
+        if (status === 'completed') {
+          // 3. Get Result
+          const resultRes = await axios.get(`${API_BASE}/results/${job_id}`, { responseType: 'blob' });
+          resultBlob = resultRes.data;
+          break;
+        } else if (status === 'failed') {
+          throw new Error(statusRes.data.error || "Job failed");
+        }
+      }
+
+      if (!resultBlob) throw new Error("Failed to get result");
+
+      const newImageBlob = resultBlob;
       const newUrl = URL.createObjectURL(newImageBlob);
 
       // Update state for continuous editing

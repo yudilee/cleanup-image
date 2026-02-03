@@ -1,4 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, Query
+from fastapi import FastAPI, UploadFile, File, Query, BackgroundTasks, HTTPException
+import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from io import BytesIO
@@ -29,6 +30,46 @@ QUALITY_PRESETS = {
 # Lazy load rembg to avoid slow startup
 _rembg_session = None
 
+# In-memory job store
+# Structure: { job_id: { "status": "processing" | "completed" | "failed", "result": bytes | None, "error": str | None } }
+JOBS = {}
+
+def process_inpaint_job(job_id: str, image_pil: Image.Image, mask_pil: Image.Image, max_dim: int, original_size: tuple):
+    try:
+        # Resize if image exceeds max dimension
+        w, h = image_pil.size
+        if max(w, h) > max_dim:
+            scale = max_dim / max(w, h)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            image_pil = image_pil.resize((new_w, new_h), Image.LANCZOS)
+            mask_pil = mask_pil.resize((new_w, new_h), Image.NEAREST)
+
+        # Process
+        result_pil = inpainting_model.process(image_pil, mask_pil)
+
+        # Resize back to original size if we downscaled
+        if result_pil.size != original_size:
+            result_pil = result_pil.resize(original_size, Image.LANCZOS)
+
+        # Save result to memory
+        output = BytesIO()
+        result_pil.save(output, format="PNG")
+        output.seek(0)
+        
+        JOBS[job_id] = {
+            "status": "completed",
+            "result": output.read(),
+            "error": None
+        }
+    except Exception as e:
+        print(f"Job {job_id} failed: {e}")
+        JOBS[job_id] = {
+            "status": "failed",
+            "result": None,
+            "error": str(e)
+        }
+
 def get_rembg_session():
     global _rembg_session
     if _rembg_session is None:
@@ -50,6 +91,7 @@ def get_device():
 
 @app.post("/inpaint")
 async def inpaint(
+    background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     mask: UploadFile = File(...),
     quality: Optional[str] = Query("balanced", description="Quality preset: fast, balanced, high")
@@ -76,26 +118,34 @@ async def inpaint(
     max_dim = QUALITY_PRESETS.get(quality, QUALITY_PRESETS["balanced"])
     w, h = image_pil.size
     
-    if max(w, h) > max_dim:
-        scale = max_dim / max(w, h)
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-        image_pil = image_pil.resize((new_w, new_h), Image.LANCZOS)
-        mask_pil = mask_pil.resize((new_w, new_h), Image.NEAREST)
+    
+    # Store job
+    job_id = str(uuid.uuid4())
+    JOBS[job_id] = {"status": "processing", "result": None, "error": None}
+    
+    # Run in background
+    background_tasks.add_task(process_inpaint_job, job_id, image_pil, mask_pil, max_dim, original_size)
 
-    # Process
-    result_pil = inpainting_model.process(image_pil, mask_pil)
+    return {"job_id": job_id, "status": "processing"}
 
-    # Resize back to original size if we downscaled
-    if result_pil.size != original_size:
-        result_pil = result_pil.resize(original_size, Image.LANCZOS)
+@app.get("/jobs/{job_id}")
+def get_job_status(job_id: str):
+    if job_id not in JOBS:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    job = JOBS[job_id]
+    return {"job_id": job_id, "status": job["status"], "error": job["error"]}
 
-    # Return result
-    output = BytesIO()
-    result_pil.save(output, format="PNG")
-    output.seek(0)
-
-    return StreamingResponse(output, media_type="image/png")
+@app.get("/results/{job_id}")
+def get_job_result(job_id: str):
+    if job_id not in JOBS:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    job = JOBS[job_id]
+    if job["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Job not completed")
+    
+    return StreamingResponse(BytesIO(job["result"]), media_type="image/png")
 
 
 # ============ PHASE 5: AI FEATURES ============
