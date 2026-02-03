@@ -1,4 +1,3 @@
-```javascript
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -83,1101 +82,1101 @@ export default function Home() {
 
   // Fetch device info on mount
   useEffect(() => {
-    axios.get(`${ API_BASE }/device`)
+    axios.get(`${API_BASE}/device`)
       .then(res => setDeviceInfo(res.data.device_name))
-  .catch(() => setDeviceInfo('Backend offline'));
+      .catch(() => setDeviceInfo('Backend offline'));
   }, []);
 
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (e.target.files && e.target.files[0]) {
-    loadImageFromFile(e.target.files[0]);
-  }
-};
-
-// ============ DRAG & DROP ============
-const handleDragOver = useCallback((e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(true);
-}, []);
-
-const handleDragLeave = useCallback((e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(false);
-}, []);
-
-const handleDrop = useCallback((e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(false);
-
-  const files = e.dataTransfer.files;
-  if (files && files.length > 0) {
-    const file = files[0];
-    if (file.type.startsWith('image/')) {
-      loadImageFromFile(file);
-    }
-  }
-}, [loadImageFromFile]);
-
-// ============ CLIPBOARD PASTE ============
-useEffect(() => {
-  const handlePaste = (e: ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          loadImageFromFile(file);
-          e.preventDefault();
-          break;
-        }
-      }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      loadImageFromFile(e.target.files[0]);
     }
   };
 
-  window.addEventListener('paste', handlePaste);
-  return () => window.removeEventListener('paste', handlePaste);
-}, [loadImageFromFile]);
+  // ============ DRAG & DROP ============
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
 
-// ============ KEYBOARD SHORTCUTS ============
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    // Don't trigger shortcuts if user is typing in an input
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
 
-    switch (e.key) {
-      case '[':
-        setBrushSize((prev) => Math.max(5, prev - 5));
-        break;
-      case ']':
-        setBrushSize((prev) => Math.min(100, prev + 5));
-        break;
-      case 'Escape':
-        if (canvasRef.current) {
-          canvasRef.current.clearLines();
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        loadImageFromFile(file);
+      }
+    }
+  }, [loadImageFromFile]);
+
+  // ============ CLIPBOARD PASTE ============
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            loadImageFromFile(file);
+            e.preventDefault();
+            break;
+          }
         }
-        break;
-      case 'Enter':
-        if (maskBlob && !loading) {
-          handleClean();
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [loadImageFromFile]);
+
+  // ============ KEYBOARD SHORTCUTS ============
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case '[':
+          setBrushSize((prev) => Math.max(5, prev - 5));
+          break;
+        case ']':
+          setBrushSize((prev) => Math.min(100, prev + 5));
+          break;
+        case 'Escape':
+          if (canvasRef.current) {
+            canvasRef.current.clearLines();
+          }
+          break;
+        case 'Enter':
+          if (maskBlob && !loading) {
+            handleClean();
+          }
+          break;
+        case 'z':
+        case 'Z':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            handleUndo();
+          }
+          break;
+        case 'b':
+        case 'B':
+          setTool('brush');
+          break;
+        case 'e':
+        case 'E':
+          setTool('eraser');
+          break;
+        case 'r':
+        case 'R':
+          setTool('rectangle');
+          break;
+        case 'l':
+        case 'L':
+          setTool('lasso');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [maskBlob, loading, history]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDownload = async () => {
+    if (!imageSrc) return;
+
+    // If format is PNG, we can just download the blob directly if it's already PNG
+    // But since backend always returns PNG, and we want to allow conversion:
+
+    const img = new Image();
+    img.src = imageSrc;
+    await new Promise((resolve) => { img.onload = resolve; });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Fill white background for JPEG (since transparency becomes black)
+    if (exportFormat === 'jpeg') {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    ctx.drawImage(img, 0, 0);
+
+    const mimeType = `image/${exportFormat}`;
+    const quality = (exportFormat === 'jpeg' || exportFormat === 'webp') ? jpegQuality / 100 : undefined;
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cleaned_image.${exportFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, mimeType, quality);
+  };
+
+  const handleClean = async () => {
+    if (!imageFile || !maskBlob) return;
+    setLoading(true);
+
+    // Store the "before" image for comparison
+    const beforeUrl = imageSrc;
+    setBeforeImage(beforeUrl);
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("mask", maskBlob, "mask.png");
+
+    try {
+      // 1. Submit Job
+      const response = await axios.post(`${API_BASE}/inpaint?quality=${qualityPreset}`, formData);
+      const { job_id } = response.data;
+
+      // 2. Poll Status
+      let resultBlob: Blob | null = null;
+      let failureCount = 0;
+
+      while (true) {
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2s
+
+        try {
+          const statusRes = await axios.get(`${API_BASE}/jobs/${job_id}`);
+          const status = statusRes.data.status;
+          failureCount = 0; // Reset failure count on success
+
+          if (status === 'completed') {
+            // 3. Get Result
+            const resultRes = await axios.get(`${API_BASE}/results/${job_id}`, { responseType: 'blob' });
+            resultBlob = resultRes.data;
+            break;
+          } else if (status === 'failed') {
+            throw new Error(statusRes.data.error || "Job failed");
+          }
+        } catch (error) {
+          console.warn("Poll failed, retrying...", error);
+          failureCount++;
+          // CPU processing might starve the server for minutes. 
+          // We need to be very patient. 150 retries * 5s ~ 12 minutes of coverage.
+          if (failureCount > 150) throw error;
+          await new Promise(r => setTimeout(r, 5000)); // Wait 5s before retrying to relieve load
         }
-        break;
-      case 'z':
-      case 'Z':
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          handleUndo();
-        }
-        break;
-      case 'b':
-      case 'B':
-        setTool('brush');
-        break;
-      case 'e':
-      case 'E':
-        setTool('eraser');
-        break;
-      case 'r':
-      case 'R':
-        setTool('rectangle');
-        break;
-      case 'l':
-      case 'L':
-        setTool('lasso');
-        break;
+      }
+
+      if (!resultBlob) throw new Error("Failed to get result");
+
+      const newImageBlob = resultBlob;
+      const newUrl = URL.createObjectURL(newImageBlob);
+
+      // Update state for continuous editing
+      setImageSrc(newUrl);
+      setImageFile(new File([newImageBlob], "cleaned.png", { type: "image/png" }));
+      setHistory((prev) => [...prev, newUrl]);
+
+      // Clear lines on canvas
+      if (canvasRef.current) {
+        canvasRef.current.clearLines();
+      }
+
+      // Show comparison after successful clean
+      setShowComparison(true);
+
+    } catch (error: any) {
+      console.error("Error processing image:", error);
+      const msg = error.response?.data?.detail || error.message || "Unknown error";
+      alert(`Error processing image: ${msg}\nStatus: ${error.response?.status}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [maskBlob, loading, history]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleUndo = () => {
+    if (history.length <= 1) return;
+    const newHistory = [...history];
+    newHistory.pop(); // Remove current
+    const previousUrl = newHistory[newHistory.length - 1];
 
-const handleDownload = async () => {
-  if (!imageSrc) return;
+    setHistory(newHistory);
+    setImageSrc(previousUrl);
+    // We also need to update imageFile if we want next clean to work on previous image.
+    // Fetch blob from URL to recreate File object
+    fetch(previousUrl)
+      .then(r => r.blob())
+      .then(blob => {
+        setImageFile(new File([blob], "restored.png", { type: "image/png" }));
+      });
 
-  // If format is PNG, we can just download the blob directly if it's already PNG
-  // But since backend always returns PNG, and we want to allow conversion:
-
-  const img = new Image();
-  img.src = imageSrc;
-  await new Promise((resolve) => { img.onload = resolve; });
-
-  const canvas = document.createElement('canvas');
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  // Fill white background for JPEG (since transparency becomes black)
-  if (exportFormat === 'jpeg') {
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  ctx.drawImage(img, 0, 0);
-
-  const mimeType = `image/${exportFormat}`;
-  const quality = (exportFormat === 'jpeg' || exportFormat === 'webp') ? jpegQuality / 100 : undefined;
-
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cleaned_image.${exportFormat}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, mimeType, quality);
-};
-
-const handleClean = async () => {
-  if (!imageFile || !maskBlob) return;
-  setLoading(true);
-
-  // Store the "before" image for comparison
-  const beforeUrl = imageSrc;
-  setBeforeImage(beforeUrl);
-
-  const formData = new FormData();
-  formData.append("image", imageFile);
-  formData.append("mask", maskBlob, "mask.png");
-
-  try {
-    // 1. Submit Job
-    const response = await axios.post(`${API_BASE}/inpaint?quality=${qualityPreset}`, formData);
-    const { job_id } = response.data;
-
-    // 2. Poll Status
-    let resultBlob: Blob | null = null;
-    let failureCount = 0;
-
-    while (true) {
-      await new Promise(r => setTimeout(r, 2000)); // Wait 2s
-
-      try {
-        const statusRes = await axios.get(`${API_BASE}/jobs/${job_id}`);
-        const status = statusRes.data.status;
-        failureCount = 0; // Reset failure count on success
-
-        if (status === 'completed') {
-          // 3. Get Result
-          const resultRes = await axios.get(`${API_BASE}/results/${job_id}`, { responseType: 'blob' });
-          resultBlob = resultRes.data;
-          break;
-        } else if (status === 'failed') {
-          throw new Error(statusRes.data.error || "Job failed");
-        }
-      } catch (error) {
-        console.warn("Poll failed, retrying...", error);
-        failureCount++;
-        // CPU processing might starve the server for minutes. 
-        // We need to be very patient. 150 retries * 5s ~ 12 minutes of coverage.
-        if (failureCount > 150) throw error;
-        await new Promise(r => setTimeout(r, 5000)); // Wait 5s before retrying to relieve load
-      }
-    }
-
-    if (!resultBlob) throw new Error("Failed to get result");
-
-    const newImageBlob = resultBlob;
-    const newUrl = URL.createObjectURL(newImageBlob);
-
-    // Update state for continuous editing
-    setImageSrc(newUrl);
-    setImageFile(new File([newImageBlob], "cleaned.png", { type: "image/png" }));
-    setHistory((prev) => [...prev, newUrl]);
-
-    // Clear lines on canvas
     if (canvasRef.current) {
       canvasRef.current.clearLines();
     }
+  };
 
-    // Show comparison after successful clean
-    setShowComparison(true);
+  const handleReset = () => {
+    if (history.length > 0) {
+      const first = history[0];
+      setHistory([first]);
+      setImageSrc(first);
+      fetch(first)
+        .then(r => r.blob())
+        .then(blob => {
+          setImageFile(new File([blob], "original.png", { type: "image/png" }));
+        });
+      if (canvasRef.current) {
+        canvasRef.current.clearLines();
+      }
+    }
+  };
 
-  } catch (error: any) {
-    console.error("Error processing image:", error);
-    const msg = error.response?.data?.detail || error.message || "Unknown error";
-    alert(`Error processing image: ${msg}\nStatus: ${error.response?.status}`);
-  } finally {
-    setLoading(false);
-  }
-};
+  // ============ AI FEATURE HANDLERS ============
 
-const handleUndo = () => {
-  if (history.length <= 1) return;
-  const newHistory = [...history];
-  newHistory.pop(); // Remove current
-  const previousUrl = newHistory[newHistory.length - 1];
+  const handleAutoDetect = async () => {
+    if (!imageFile) return;
+    setAiLoading('detect');
 
-  setHistory(newHistory);
-  setImageSrc(previousUrl);
-  // We also need to update imageFile if we want next clean to work on previous image.
-  // Fetch blob from URL to recreate File object
-  fetch(previousUrl)
-    .then(r => r.blob())
-    .then(blob => {
-      setImageFile(new File([blob], "restored.png", { type: "image/png" }));
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    try {
+      const response = await axios.post(`${API_BASE}/auto-mask?invert=true`, formData, {
+        responseType: "blob",
+        timeout: 300000,
+      });
+
+      const maskUrl = URL.createObjectURL(response.data);
+      setAutoMask(maskUrl);
+
+      // Convert mask to a blob and set as maskBlob for cleaning
+      setMaskBlob(response.data);
+
+      alert("✨ Objects detected! The mask has been auto-generated. Click 'Clean' to remove detected areas.");
+    } catch (error) {
+      console.error("Error detecting objects:", error);
+      alert("Error detecting objects. Ensure backend is running.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const handleRefineEdges = async () => {
+    if (!imageFile || !maskBlob) {
+      alert("Please draw a mask first, then refine edges.");
+      return;
+    }
+    setAiLoading('refine');
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("mask", maskBlob, "mask.png");
+
+    try {
+      const response = await axios.post(`${API_BASE}/refine-edges`, formData, {
+        responseType: "blob",
+        timeout: 300000,
+      });
+
+      // Update mask with refined version
+      setMaskBlob(response.data);
+      alert("✨ Edges refined! Click 'Clean' to process.");
+    } catch (error) {
+      console.error("Error refining edges:", error);
+      alert("Error refining edges.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!imageFile) return;
+    setAiLoading('remove-bg');
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    try {
+      const response = await axios.post(`${API_BASE}/remove-background`, formData, {
+        responseType: "blob",
+        timeout: 300000,
+      });
+
+      const newUrl = URL.createObjectURL(response.data);
+      setImageSrc(newUrl);
+      setImageFile(new File([response.data], "no-bg.png", { type: "image/png" }));
+      setHistory((prev) => [...prev, newUrl]);
+
+      if (canvasRef.current) {
+        canvasRef.current.clearLines();
+      }
+    } catch (error) {
+      console.error("Error removing background:", error);
+      alert("Error removing background.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const handleReplaceBackground = async (bgFile: File) => {
+    if (!imageFile) return;
+    setAiLoading('replace-bg');
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("background", bgFile);
+
+    try {
+      const response = await axios.post(`${API_BASE}/replace-background`, formData, {
+        responseType: "blob",
+        timeout: 300000,
+      });
+
+      const newUrl = URL.createObjectURL(response.data);
+      setBeforeImage(imageSrc);
+      setImageSrc(newUrl);
+      setImageFile(new File([response.data], "new-bg.png", { type: "image/png" }));
+      setHistory((prev) => [...prev, newUrl]);
+      setShowComparison(true);
+
+      if (canvasRef.current) {
+        canvasRef.current.clearLines();
+      }
+    } catch (error) {
+      console.error("Error replacing background:", error);
+      alert("Error replacing background.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const handleOutpaint = async () => {
+    if (!imageFile) return;
+    setAiLoading('outpaint');
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    const params = new URLSearchParams({
+      extend_left: outpaintValues.left.toString(),
+      extend_right: outpaintValues.right.toString(),
+      extend_top: outpaintValues.top.toString(),
+      extend_bottom: outpaintValues.bottom.toString(),
     });
 
-  if (canvasRef.current) {
-    canvasRef.current.clearLines();
-  }
-};
+    try {
+      const response = await axios.post(`${API_BASE}/outpaint?${params}`, formData, {
+        responseType: "blob",
+        timeout: 300000,
+      });
 
-const handleReset = () => {
-  if (history.length > 0) {
-    const first = history[0];
-    setHistory([first]);
-    setImageSrc(first);
-    fetch(first)
+      const newUrl = URL.createObjectURL(response.data);
+      setBeforeImage(imageSrc);
+      setImageSrc(newUrl);
+      setImageFile(new File([response.data], "outpainted.png", { type: "image/png" }));
+      setHistory((prev) => [...prev, newUrl]);
+      setShowOutpaint(false);
+      setShowComparison(true);
+
+      if (canvasRef.current) {
+        canvasRef.current.clearLines();
+      }
+    } catch (error) {
+      console.error("Error outpainting:", error);
+      alert("Error extending canvas.");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const handleBatchProcess = async () => {
+    if (batchFiles.length === 0) return;
+
+    setAiLoading('batch');
+    setBatchProgress({ current: 0, total: batchFiles.length });
+
+    const formData = new FormData();
+    batchFiles.forEach(file => {
+      formData.append("images", file);
+    });
+
+    try {
+      const response = await axios.post(
+        `${API_BASE}/batch-inpaint?quality=${qualityPreset}`,
+        formData,
+        {
+          responseType: "blob",
+          timeout: 600000, // 10 minutes for batch
+        }
+      );
+
+      // Download the ZIP file
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cleaned_images.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setShowBatch(false);
+      setBatchFiles([]);
+      alert(`✅ Processed ${batchFiles.length} images! Check your downloads.`);
+    } catch (error) {
+      console.error("Error batch processing:", error);
+      alert("Error processing batch. Try fewer images or lower quality.");
+    } finally {
+      setAiLoading(null);
+      setBatchProgress(null);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!imageSrc) return;
+
+    try {
+      // Convert URL to blob for sharing
+      const response = await fetch(imageSrc);
+      const blob = await response.blob();
+      const file = new File([blob], 'cleaned_image.png', { type: 'image/png' });
+
+      await navigator.share({
+        title: 'Cleaned Image',
+        text: 'Check out this image I cleaned with Cleanup Image!',
+        files: [file],
+      });
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        console.error("Error sharing:", error);
+        // Fallback: copy image URL to clipboard
+        try {
+          await navigator.clipboard.writeText(imageSrc);
+          alert('Link copied to clipboard!');
+        } catch {
+          alert('Sharing not supported on this device.');
+        }
+      }
+    }
+  };
+
+  const handleLoadHistoryItem = (url: string, index: number) => {
+    setImageSrc(url);
+    fetch(url)
       .then(r => r.blob())
       .then(blob => {
-        setImageFile(new File([blob], "original.png", { type: "image/png" }));
+        setImageFile(new File([blob], `history_${index}.png`, { type: "image/png" }));
       });
     if (canvasRef.current) {
       canvasRef.current.clearLines();
     }
-  }
-};
+    setMaskBlob(null);
+  };
 
-// ============ AI FEATURE HANDLERS ============
-
-const handleAutoDetect = async () => {
-  if (!imageFile) return;
-  setAiLoading('detect');
-
-  const formData = new FormData();
-  formData.append("image", imageFile);
-
-  try {
-    const response = await axios.post(`${API_BASE}/auto-mask?invert=true`, formData, {
-      responseType: "blob",
-      timeout: 300000,
-    });
-
-    const maskUrl = URL.createObjectURL(response.data);
-    setAutoMask(maskUrl);
-
-    // Convert mask to a blob and set as maskBlob for cleaning
-    setMaskBlob(response.data);
-
-    alert("✨ Objects detected! The mask has been auto-generated. Click 'Clean' to remove detected areas.");
-  } catch (error) {
-    console.error("Error detecting objects:", error);
-    alert("Error detecting objects. Ensure backend is running.");
-  } finally {
-    setAiLoading(null);
-  }
-};
-
-const handleRefineEdges = async () => {
-  if (!imageFile || !maskBlob) {
-    alert("Please draw a mask first, then refine edges.");
-    return;
-  }
-  setAiLoading('refine');
-
-  const formData = new FormData();
-  formData.append("image", imageFile);
-  formData.append("mask", maskBlob, "mask.png");
-
-  try {
-    const response = await axios.post(`${API_BASE}/refine-edges`, formData, {
-      responseType: "blob",
-      timeout: 300000,
-    });
-
-    // Update mask with refined version
-    setMaskBlob(response.data);
-    alert("✨ Edges refined! Click 'Clean' to process.");
-  } catch (error) {
-    console.error("Error refining edges:", error);
-    alert("Error refining edges.");
-  } finally {
-    setAiLoading(null);
-  }
-};
-
-const handleRemoveBackground = async () => {
-  if (!imageFile) return;
-  setAiLoading('remove-bg');
-
-  const formData = new FormData();
-  formData.append("image", imageFile);
-
-  try {
-    const response = await axios.post(`${API_BASE}/remove-background`, formData, {
-      responseType: "blob",
-      timeout: 300000,
-    });
-
-    const newUrl = URL.createObjectURL(response.data);
-    setImageSrc(newUrl);
-    setImageFile(new File([response.data], "no-bg.png", { type: "image/png" }));
-    setHistory((prev) => [...prev, newUrl]);
-
-    if (canvasRef.current) {
-      canvasRef.current.clearLines();
-    }
-  } catch (error) {
-    console.error("Error removing background:", error);
-    alert("Error removing background.");
-  } finally {
-    setAiLoading(null);
-  }
-};
-
-const handleReplaceBackground = async (bgFile: File) => {
-  if (!imageFile) return;
-  setAiLoading('replace-bg');
-
-  const formData = new FormData();
-  formData.append("image", imageFile);
-  formData.append("background", bgFile);
-
-  try {
-    const response = await axios.post(`${API_BASE}/replace-background`, formData, {
-      responseType: "blob",
-      timeout: 300000,
-    });
-
-    const newUrl = URL.createObjectURL(response.data);
-    setBeforeImage(imageSrc);
-    setImageSrc(newUrl);
-    setImageFile(new File([response.data], "new-bg.png", { type: "image/png" }));
-    setHistory((prev) => [...prev, newUrl]);
-    setShowComparison(true);
-
-    if (canvasRef.current) {
-      canvasRef.current.clearLines();
-    }
-  } catch (error) {
-    console.error("Error replacing background:", error);
-    alert("Error replacing background.");
-  } finally {
-    setAiLoading(null);
-  }
-};
-
-const handleOutpaint = async () => {
-  if (!imageFile) return;
-  setAiLoading('outpaint');
-
-  const formData = new FormData();
-  formData.append("image", imageFile);
-
-  const params = new URLSearchParams({
-    extend_left: outpaintValues.left.toString(),
-    extend_right: outpaintValues.right.toString(),
-    extend_top: outpaintValues.top.toString(),
-    extend_bottom: outpaintValues.bottom.toString(),
-  });
-
-  try {
-    const response = await axios.post(`${API_BASE}/outpaint?${params}`, formData, {
-      responseType: "blob",
-      timeout: 300000,
-    });
-
-    const newUrl = URL.createObjectURL(response.data);
-    setBeforeImage(imageSrc);
-    setImageSrc(newUrl);
-    setImageFile(new File([response.data], "outpainted.png", { type: "image/png" }));
-    setHistory((prev) => [...prev, newUrl]);
-    setShowOutpaint(false);
-    setShowComparison(true);
-
-    if (canvasRef.current) {
-      canvasRef.current.clearLines();
-    }
-  } catch (error) {
-    console.error("Error outpainting:", error);
-    alert("Error extending canvas.");
-  } finally {
-    setAiLoading(null);
-  }
-};
-
-const handleBatchProcess = async () => {
-  if (batchFiles.length === 0) return;
-
-  setAiLoading('batch');
-  setBatchProgress({ current: 0, total: batchFiles.length });
-
-  const formData = new FormData();
-  batchFiles.forEach(file => {
-    formData.append("images", file);
-  });
-
-  try {
-    const response = await axios.post(
-      `${API_BASE}/batch-inpaint?quality=${qualityPreset}`,
-      formData,
-      {
-        responseType: "blob",
-        timeout: 600000, // 10 minutes for batch
-      }
-    );
-
-    // Download the ZIP file
-    const url = URL.createObjectURL(response.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'cleaned_images.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    setShowBatch(false);
-    setBatchFiles([]);
-    alert(`✅ Processed ${batchFiles.length} images! Check your downloads.`);
-  } catch (error) {
-    console.error("Error batch processing:", error);
-    alert("Error processing batch. Try fewer images or lower quality.");
-  } finally {
-    setAiLoading(null);
-    setBatchProgress(null);
-  }
-};
-
-const handleShare = async () => {
-  if (!imageSrc) return;
-
-  try {
-    // Convert URL to blob for sharing
-    const response = await fetch(imageSrc);
-    const blob = await response.blob();
-    const file = new File([blob], 'cleaned_image.png', { type: 'image/png' });
-
-    await navigator.share({
-      title: 'Cleaned Image',
-      text: 'Check out this image I cleaned with Cleanup Image!',
-      files: [file],
-    });
-  } catch (error) {
-    if ((error as Error).name !== 'AbortError') {
-      console.error("Error sharing:", error);
-      // Fallback: copy image URL to clipboard
-      try {
-        await navigator.clipboard.writeText(imageSrc);
-        alert('Link copied to clipboard!');
-      } catch {
-        alert('Sharing not supported on this device.');
-      }
-    }
-  }
-};
-
-const handleLoadHistoryItem = (url: string, index: number) => {
-  setImageSrc(url);
-  fetch(url)
-    .then(r => r.blob())
-    .then(blob => {
-      setImageFile(new File([blob], `history_${index}.png`, { type: "image/png" }));
-    });
-  if (canvasRef.current) {
-    canvasRef.current.clearLines();
-  }
-  setMaskBlob(null);
-};
-
-return (
-  <main
-    className="min-h-screen bg-neutral-900 text-white p-8 flex flex-col items-center relative"
-    onDragOver={handleDragOver}
-    onDragLeave={handleDragLeave}
-    onDrop={handleDrop}
-  >
-    {/* Drag & Drop Overlay */}
-    {isDragging && (
-      <div className="fixed inset-0 bg-purple-600/30 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none">
-        <div className="bg-neutral-800 border-4 border-dashed border-purple-500 rounded-3xl p-12 text-center">
-          <Upload size={64} className="mx-auto mb-4 text-purple-400" />
-          <p className="text-2xl font-bold text-white">Drop your image here</p>
-        </div>
-      </div>
-    )}
-
-    <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Cleanup Image</h1>
-    <p className="mb-2 text-neutral-400">Remove objects from your images with AI</p>
-    <p className="mb-6 text-xs text-neutral-500">
-      <span className="px-2 py-0.5 bg-neutral-800 rounded-full mr-2">1</span>Upload
-      <span className="mx-2 text-neutral-600">→</span>
-      <span className="px-2 py-0.5 bg-neutral-800 rounded-full mr-2">2</span>Draw mask
-      <span className="mx-2 text-neutral-600">→</span>
-      <span className="px-2 py-0.5 bg-neutral-800 rounded-full mr-2">3</span>Set quality
-      <span className="mx-2 text-neutral-600">→</span>
-      <span className="px-2 py-0.5 bg-purple-700 rounded-full mr-2">4</span>Clean
-    </p>
-
-    {/* Toolbar */}
-    <div className="flex gap-4 mb-6 bg-neutral-800 p-4 rounded-xl shadow-lg border border-neutral-700 max-w-[95vw] overflow-x-auto pb-4">
-      <label className="flex items-center gap-2 cursor-pointer hover:text-blue-400 transition">
-        <Upload size={20} />
-        <span>Upload Image</span>
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-      </label>
-
-      <div className="w-px bg-neutral-600 mx-2"></div>
-
-      <div className="flex items-center gap-2">
-        <span className="text-sm">Brush Size:</span>
-        <input
-          type="range"
-          min="5"
-          max="100"
-          value={brushSize}
-          onChange={(e) => setBrushSize(Number(e.target.value))}
-          className="w-24 accent-purple-500"
-        />
-      </div>
-
-      <div className="w-px bg-neutral-600 mx-2"></div>
-
-      {/* Tool Toggle */}
-      <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
-        <button
-          onClick={() => setTool('brush')}
-          className={`p-2 rounded-lg transition ${tool === 'brush' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-          title="Brush (B)"
-        >
-          <Paintbrush size={18} />
-        </button>
-        <button
-          onClick={() => setTool('eraser')}
-          className={`p-2 rounded-lg transition ${tool === 'eraser' ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-          title="Eraser (E)"
-        >
-          <Eraser size={18} />
-        </button>
-        <button
-          onClick={() => setTool('rectangle')}
-          className={`p-2 rounded-lg transition ${tool === 'rectangle' ? 'bg-green-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-          title="Rectangle Selection (R)"
-        >
-          <Square size={18} />
-        </button>
-        <button
-          onClick={() => setTool('lasso')}
-          className={`p-2 rounded-lg transition ${tool === 'lasso' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-          title="Lasso Selection (L)"
-        >
-          <Lasso size={18} />
-        </button>
-      </div>
-
-      {/* Mask Undo/Redo */}
-      <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
-        <button
-          onClick={() => canvasRef.current?.undo()}
-          className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
-          title="Undo Mask Stroke (Ctrl+Z)"
-        >
-          <Undo2 size={18} />
-        </button>
-        <button
-          onClick={() => canvasRef.current?.redo()}
-          className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
-          title="Redo Mask Stroke (Ctrl+Y)"
-        >
-          <Redo2 size={18} />
-        </button>
-      </div>
-
-      <button
-        onClick={handleClean}
-        disabled={!maskBlob || loading}
-        className={`flex items-center gap-2 px-4 py-1 rounded-lg font-medium transition ${maskBlob && !loading ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'}`}
-      >
-        {loading ? <RefreshCw className="animate-spin" size={20} /> : <Eraser size={20} />}
-        <span>Clean</span>
-      </button>
-
-      <div className="w-px bg-neutral-600 mx-2"></div>
-
-      {/* Quality Preset */}
-      <div className="flex items-center gap-2 group relative">
-        <Zap size={16} className="text-yellow-400" />
-        <select
-          value={qualityPreset}
-          onChange={(e) => setQualityPreset(e.target.value as 'fast' | 'balanced' | 'high')}
-          className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer"
-          title="Processing quality - affects speed and detail"
-        >
-          <option value="fast">⚡ Fast (512px)</option>
-          <option value="balanced">⚖️ Balanced (1024px)</option>
-          <option value="high">✨ Original Quality</option>
-        </select>
-        {/* Tooltip */}
-        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64">
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 text-xs shadow-xl">
-            <p className="font-semibold text-white mb-2">Processing Quality</p>
-            <p className="text-neutral-300 mb-2">Affects AI processing speed & detail:</p>
-            <ul className="text-neutral-400 space-y-1">
-              <li><span className="text-green-400">Fast:</span> Quick preview, less detail</li>
-              <li><span className="text-yellow-400">Balanced:</span> Good speed & quality</li>
-              <li><span className="text-purple-400">Original:</span> Best quality, slower</li>
-            </ul>
-            <p className="text-neutral-500 mt-2 text-[10px]">💡 Output is always full resolution</p>
+  return (
+    <main
+      className="min-h-screen bg-neutral-900 text-white p-8 flex flex-col items-center relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 bg-purple-600/30 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-neutral-800 border-4 border-dashed border-purple-500 rounded-3xl p-12 text-center">
+            <Upload size={64} className="mx-auto mb-4 text-purple-400" />
+            <p className="text-2xl font-bold text-white">Drop your image here</p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Device Info */}
-      <div className="flex items-center gap-1 text-xs text-neutral-400 bg-neutral-700/50 px-2 py-1 rounded">
-        <Cpu size={14} />
-        <span>{deviceInfo}</span>
-      </div>
+      <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Cleanup Image</h1>
+      <p className="mb-2 text-neutral-400">Remove objects from your images with AI</p>
+      <p className="mb-6 text-xs text-neutral-500">
+        <span className="px-2 py-0.5 bg-neutral-800 rounded-full mr-2">1</span>Upload
+        <span className="mx-2 text-neutral-600">→</span>
+        <span className="px-2 py-0.5 bg-neutral-800 rounded-full mr-2">2</span>Draw mask
+        <span className="mx-2 text-neutral-600">→</span>
+        <span className="px-2 py-0.5 bg-neutral-800 rounded-full mr-2">3</span>Set quality
+        <span className="mx-2 text-neutral-600">→</span>
+        <span className="px-2 py-0.5 bg-purple-700 rounded-full mr-2">4</span>Clean
+      </p>
 
-      <div className="w-px bg-neutral-600 mx-2"></div>
+      {/* Toolbar */}
+      <div className="flex gap-4 mb-6 bg-neutral-800 p-4 rounded-xl shadow-lg border border-neutral-700 max-w-[95vw] overflow-x-auto pb-4">
+        <label className="flex items-center gap-2 cursor-pointer hover:text-blue-400 transition">
+          <Upload size={20} />
+          <span>Upload Image</span>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+        </label>
 
-      {imageSrc && (
+        <div className="w-px bg-neutral-600 mx-2"></div>
+
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowAiTools(!showAiTools)}
-            className={`flex items-center gap-2 px-3 py-1 rounded-lg border transition ${showAiTools ? 'bg-purple-900/50 border-purple-500 text-purple-300' : 'bg-neutral-800 border-neutral-600 text-neutral-400 hover:text-white'}`}
-            title="Toggle AI Magic Tools"
-          >
-            <Sparkles size={16} />
-            <span className="text-sm font-medium">Magic Tools</span>
-            {showAiTools ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-          </button>
-
-          {showAiTools && (
-            <div className="flex items-center gap-1 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-1 border border-purple-500/30 animate-in fade-in slide-in-from-left-5 duration-200">
-              <button
-                onClick={handleAutoDetect}
-                disabled={aiLoading !== null || loading}
-                className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
-                title="Auto-detect objects to remove (AI)"
-              >
-                <Wand2 size={16} />
-                {aiLoading === 'detect' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Auto</span>}
-              </button>
-              <button
-                onClick={handleRefineEdges}
-                disabled={!maskBlob || aiLoading !== null || loading}
-                className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-                title="Refine mask edges (AI)"
-              >
-                <Sparkles size={16} />
-                {aiLoading === 'refine' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Refine</span>}
-              </button>
-              <button
-                onClick={handleRemoveBackground}
-                disabled={aiLoading !== null || loading}
-                className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
-                title="Remove background (AI)"
-              >
-                <ImageMinus size={16} />
-                {aiLoading === 'remove-bg' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">No BG</span>}
-              </button>
-              <label
-                className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
-                title="Replace background with new image (AI)"
-              >
-                <Upload size={16} />
-                {aiLoading === 'replace-bg' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">New BG</span>}
-                <input
-                  ref={bgInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleReplaceBackground(e.target.files[0]);
-                    }
-                  }}
-                />
-              </label>
-              <button
-                onClick={() => setShowOutpaint(true)}
-                disabled={aiLoading !== null || loading}
-                className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
-                title="Extend canvas (Outpainting)"
-              >
-                <Expand size={16} />
-                {aiLoading === 'outpaint' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Extend</span>}
-              </button>
-            </div>
-          )}
+          <span className="text-sm">Brush Size:</span>
+          <input
+            type="range"
+            min="5"
+            max="100"
+            value={brushSize}
+            onChange={(e) => setBrushSize(Number(e.target.value))}
+            className="w-24 accent-purple-500"
+          />
         </div>
-      )}
 
-      <button
-        onClick={handleUndo}
-        disabled={history.length <= 1 || loading}
-        className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-        title="Undo last clean"
-      >
-        <Undo size={20} />
-      </button>
+        <div className="w-px bg-neutral-600 mx-2"></div>
 
-      <button
-        onClick={handleReset}
-        disabled={history.length <= 1 || loading}
-        className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-        title="Reset to original"
-      >
-        <RotateCcw size={20} />
-      </button>
+        {/* Tool Toggle */}
+        <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
+          <button
+            onClick={() => setTool('brush')}
+            className={`p-2 rounded-lg transition ${tool === 'brush' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Brush (B)"
+          >
+            <Paintbrush size={18} />
+          </button>
+          <button
+            onClick={() => setTool('eraser')}
+            className={`p-2 rounded-lg transition ${tool === 'eraser' ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Eraser (E)"
+          >
+            <Eraser size={18} />
+          </button>
+          <button
+            onClick={() => setTool('rectangle')}
+            className={`p-2 rounded-lg transition ${tool === 'rectangle' ? 'bg-green-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Rectangle Selection (R)"
+          >
+            <Square size={18} />
+          </button>
+          <button
+            onClick={() => setTool('lasso')}
+            className={`p-2 rounded-lg transition ${tool === 'lasso' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Lasso Selection (L)"
+          >
+            <Lasso size={18} />
+          </button>
+        </div>
 
-      {imageSrc && (
-        <>
-          {/* Comparison Toggle */}
-          {history.length > 1 && (
-            <button
-              onClick={() => setShowComparison(!showComparison)}
-              className={`p-2 rounded-lg transition ${showComparison ? 'bg-blue-600 text-white' : 'hover:bg-neutral-700 text-white'}`}
-              title="Toggle Before/After comparison"
-            >
-              <SplitSquareHorizontal size={20} />
-            </button>
-          )}
+        {/* Mask Undo/Redo */}
+        <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
+          <button
+            onClick={() => canvasRef.current?.undo()}
+            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
+            title="Undo Mask Stroke (Ctrl+Z)"
+          >
+            <Undo2 size={18} />
+          </button>
+          <button
+            onClick={() => canvasRef.current?.redo()}
+            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
+            title="Redo Mask Stroke (Ctrl+Y)"
+          >
+            <Redo2 size={18} />
+          </button>
+        </div>
 
-          <div className="w-px bg-neutral-600 mx-2"></div>
+        <button
+          onClick={handleClean}
+          disabled={!maskBlob || loading}
+          className={`flex items-center gap-2 px-4 py-1 rounded-lg font-medium transition ${maskBlob && !loading ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'}`}
+        >
+          {loading ? <RefreshCw className="animate-spin" size={20} /> : <Eraser size={20} />}
+          <span>Clean</span>
+        </button>
 
-          {/* Export Format Selector */}
+        <div className="w-px bg-neutral-600 mx-2"></div>
+
+        {/* Quality Preset */}
+        <div className="flex items-center gap-2 group relative">
+          <Zap size={16} className="text-yellow-400" />
           <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as 'png' | 'jpeg' | 'webp')}
-            className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm"
+            value={qualityPreset}
+            onChange={(e) => setQualityPreset(e.target.value as 'fast' | 'balanced' | 'high')}
+            className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer"
+            title="Processing quality - affects speed and detail"
           >
-            <option value="png">PNG</option>
-            <option value="jpeg">JPEG</option>
-            <option value="webp">WebP</option>
+            <option value="fast">⚡ Fast (512px)</option>
+            <option value="balanced">⚖️ Balanced (1024px)</option>
+            <option value="high">✨ Original Quality</option>
           </select>
-
-          {(exportFormat === 'jpeg' || exportFormat === 'webp') && (
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-neutral-400">Q:</span>
-              <input
-                type="range"
-                min="10"
-                max="100"
-                value={jpegQuality}
-                onChange={(e) => setJpegQuality(Number(e.target.value))}
-                className="w-12 accent-purple-500"
-              />
-              <span className="text-neutral-400 w-6">{jpegQuality}</span>
+          {/* Tooltip */}
+          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64">
+            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 text-xs shadow-xl">
+              <p className="font-semibold text-white mb-2">Processing Quality</p>
+              <p className="text-neutral-300 mb-2">Affects AI processing speed & detail:</p>
+              <ul className="text-neutral-400 space-y-1">
+                <li><span className="text-green-400">Fast:</span> Quick preview, less detail</li>
+                <li><span className="text-yellow-400">Balanced:</span> Good speed & quality</li>
+                <li><span className="text-purple-400">Original:</span> Best quality, slower</li>
+              </ul>
+              <p className="text-neutral-500 mt-2 text-[10px]">💡 Output is always full resolution</p>
             </div>
-          )}
+          </div>
+        </div>
 
-          <button
-            onClick={handleDownload}
-            className="p-2 rounded-lg hover:bg-neutral-700 text-white transition"
-            title="Download current"
-          >
-            <Download size={20} />
-          </button>
+        {/* Device Info */}
+        <div className="flex items-center gap-1 text-xs text-neutral-400 bg-neutral-700/50 px-2 py-1 rounded">
+          <Cpu size={14} />
+          <span>{deviceInfo}</span>
+        </div>
 
-          {/* Batch Process Button */}
-          <button
-            onClick={() => setShowBatch(true)}
-            className="p-2 rounded-lg hover:bg-neutral-700 text-yellow-400 transition"
-            title="Batch process multiple images"
-          >
-            <Layers size={20} />
-          </button>
+        <div className="w-px bg-neutral-600 mx-2"></div>
 
-          {/* History Gallery Button */}
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className={`p-2 rounded-lg transition ${showHistory ? 'bg-blue-600 text-white' : 'hover:bg-neutral-700 text-blue-400'}`}
-            title="Toggle history gallery"
-          >
-            <Clock size={20} />
-          </button>
-
-          {/* Share Button */}
-          {canShare && (
+        {imageSrc && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleShare}
-              className="p-2 rounded-lg hover:bg-neutral-700 text-green-400 transition"
-              title="Share image"
+              onClick={() => setShowAiTools(!showAiTools)}
+              className={`flex items-center gap-2 px-3 py-1 rounded-lg border transition ${showAiTools ? 'bg-purple-900/50 border-purple-500 text-purple-300' : 'bg-neutral-800 border-neutral-600 text-neutral-400 hover:text-white'}`}
+              title="Toggle AI Magic Tools"
             >
-              <Share2 size={20} />
+              <Sparkles size={16} />
+              <span className="text-sm font-medium">Magic Tools</span>
+              {showAiTools ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
-          )}
-        </>
-      )}
 
-    </div>
+            {showAiTools && (
+              <div className="flex items-center gap-1 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-1 border border-purple-500/30 animate-in fade-in slide-in-from-left-5 duration-200">
+                <button
+                  onClick={handleAutoDetect}
+                  disabled={aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
+                  title="Auto-detect objects to remove (AI)"
+                >
+                  <Wand2 size={16} />
+                  {aiLoading === 'detect' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Auto</span>}
+                </button>
+                <button
+                  onClick={handleRefineEdges}
+                  disabled={!maskBlob || aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+                  title="Refine mask edges (AI)"
+                >
+                  <Sparkles size={16} />
+                  {aiLoading === 'refine' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Refine</span>}
+                </button>
+                <button
+                  onClick={handleRemoveBackground}
+                  disabled={aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
+                  title="Remove background (AI)"
+                >
+                  <ImageMinus size={16} />
+                  {aiLoading === 'remove-bg' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">No BG</span>}
+                </button>
+                <label
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
+                  title="Replace background with new image (AI)"
+                >
+                  <Upload size={16} />
+                  {aiLoading === 'replace-bg' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">New BG</span>}
+                  <input
+                    ref={bgInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleReplaceBackground(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </label>
+                <button
+                  onClick={() => setShowOutpaint(true)}
+                  disabled={aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
+                  title="Extend canvas (Outpainting)"
+                >
+                  <Expand size={16} />
+                  {aiLoading === 'outpaint' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Extend</span>}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-    {/* History Gallery Panel */}
-    {showHistory && history.length > 0 && (
-      <div className="w-full max-w-4xl mb-4 bg-neutral-800/50 rounded-xl p-4 border border-neutral-700">
-        <div className="flex items-center gap-2 mb-3">
-          <Clock className="text-blue-400" size={16} />
-          <span className="text-sm font-medium">Edit History</span>
-          <span className="text-xs text-neutral-500">({history.length} versions)</span>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {history.map((url, index) => (
+        <button
+          onClick={handleUndo}
+          disabled={history.length <= 1 || loading}
+          className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+          title="Undo last clean"
+        >
+          <Undo size={20} />
+        </button>
+
+        <button
+          onClick={handleReset}
+          disabled={history.length <= 1 || loading}
+          className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+          title="Reset to original"
+        >
+          <RotateCcw size={20} />
+        </button>
+
+        {imageSrc && (
+          <>
+            {/* Comparison Toggle */}
+            {history.length > 1 && (
+              <button
+                onClick={() => setShowComparison(!showComparison)}
+                className={`p-2 rounded-lg transition ${showComparison ? 'bg-blue-600 text-white' : 'hover:bg-neutral-700 text-white'}`}
+                title="Toggle Before/After comparison"
+              >
+                <SplitSquareHorizontal size={20} />
+              </button>
+            )}
+
+            <div className="w-px bg-neutral-600 mx-2"></div>
+
+            {/* Export Format Selector */}
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'png' | 'jpeg' | 'webp')}
+              className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm"
+            >
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="webp">WebP</option>
+            </select>
+
+            {(exportFormat === 'jpeg' || exportFormat === 'webp') && (
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-neutral-400">Q:</span>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={jpegQuality}
+                  onChange={(e) => setJpegQuality(Number(e.target.value))}
+                  className="w-12 accent-purple-500"
+                />
+                <span className="text-neutral-400 w-6">{jpegQuality}</span>
+              </div>
+            )}
+
             <button
-              key={index}
-              onClick={() => handleLoadHistoryItem(url, index)}
-              className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition hover:border-blue-400 ${url === imageSrc ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-neutral-600'}`}
-              title={index === 0 ? 'Original' : `Version ${index}`}
+              onClick={handleDownload}
+              className="p-2 rounded-lg hover:bg-neutral-700 text-white transition"
+              title="Download current"
             >
-              <img src={url} alt={`Version ${index}`} className="w-full h-full object-cover" />
+              <Download size={20} />
             </button>
-          ))}
-        </div>
-        <div className="flex justify-between items-center mt-2 text-xs text-neutral-500">
-          <span>← Original</span>
-          <span>Current →</span>
-        </div>
+
+            {/* Batch Process Button */}
+            <button
+              onClick={() => setShowBatch(true)}
+              className="p-2 rounded-lg hover:bg-neutral-700 text-yellow-400 transition"
+              title="Batch process multiple images"
+            >
+              <Layers size={20} />
+            </button>
+
+            {/* History Gallery Button */}
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-2 rounded-lg transition ${showHistory ? 'bg-blue-600 text-white' : 'hover:bg-neutral-700 text-blue-400'}`}
+              title="Toggle history gallery"
+            >
+              <Clock size={20} />
+            </button>
+
+            {/* Share Button */}
+            {canShare && (
+              <button
+                onClick={handleShare}
+                className="p-2 rounded-lg hover:bg-neutral-700 text-green-400 transition"
+                title="Share image"
+              >
+                <Share2 size={20} />
+              </button>
+            )}
+          </>
+        )}
+
       </div>
-    )}
 
-    <div className="flex gap-8 flex-wrap justify-center items-start">
-      {/* Loading indicator */}
-      {loading && (
-        <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center">
-          <div className="bg-neutral-800 rounded-2xl p-8 text-center shadow-2xl">
-            <RefreshCw className="animate-spin mx-auto mb-4 text-purple-500" size={48} />
-            <p className="text-lg font-medium">Processing your image...</p>
-            <p className="text-sm text-neutral-400 mt-2">This may take a moment on CPU</p>
+      {/* History Gallery Panel */}
+      {showHistory && history.length > 0 && (
+        <div className="w-full max-w-4xl mb-4 bg-neutral-800/50 rounded-xl p-4 border border-neutral-700">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="text-blue-400" size={16} />
+            <span className="text-sm font-medium">Edit History</span>
+            <span className="text-xs text-neutral-500">({history.length} versions)</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {history.map((url, index) => (
+              <button
+                key={index}
+                onClick={() => handleLoadHistoryItem(url, index)}
+                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition hover:border-blue-400 ${url === imageSrc ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-neutral-600'}`}
+                title={index === 0 ? 'Original' : `Version ${index}`}
+              >
+                <img src={url} alt={`Version ${index}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between items-center mt-2 text-xs text-neutral-500">
+            <span>← Original</span>
+            <span>Current →</span>
           </div>
         </div>
       )}
 
-      {/* Before/After Comparison */}
-      {showComparison && beforeImage && imageSrc && history.length > 1 && (
-        <div className="relative">
-          <button
-            onClick={() => setShowComparison(false)}
-            className="absolute -top-2 -right-2 z-10 bg-neutral-700 hover:bg-neutral-600 rounded-full p-1"
-          >
-            <X size={16} />
-          </button>
-          <BeforeAfterSlider beforeSrc={beforeImage} afterSrc={imageSrc} />
-        </div>
-      )}
+      <div className="flex gap-8 flex-wrap justify-center items-start">
+        {/* Loading indicator */}
+        {loading && (
+          <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center">
+            <div className="bg-neutral-800 rounded-2xl p-8 text-center shadow-2xl">
+              <RefreshCw className="animate-spin mx-auto mb-4 text-purple-500" size={48} />
+              <p className="text-lg font-medium">Processing your image...</p>
+              <p className="text-sm text-neutral-400 mt-2">This may take a moment on CPU</p>
+            </div>
+          </div>
+        )}
 
-      {/* Editor */}
-      {imageSrc && !showComparison && (
-        <InpaintingCanvas
-          ref={canvasRef}
-          imageSrc={imageSrc}
-          onMaskReady={setMaskBlob}
-          brushSize={brushSize}
-          tool={tool}
-        />
-      )}
-
-      {!imageSrc && (
-        <div
-          className="border-2 border-dashed border-neutral-700 rounded-3xl p-20 text-center text-neutral-500 cursor-pointer hover:border-purple-500 hover:text-purple-400 transition"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload size={48} className="mx-auto mb-4 opacity-50" />
-          <p className="text-lg">Drag & drop, paste, or click to upload</p>
-          <p className="text-sm mt-2 opacity-75">Supports: JPG, PNG, WebP</p>
-        </div>
-      )}
-    </div>
-
-    {/* Batch Processing Modal */}
-    {showBatch && (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowBatch(false)}>
-        <div
-          className="bg-neutral-800 rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-neutral-700"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Layers className="text-yellow-400" />
-              Batch Process
-            </h2>
+        {/* Before/After Comparison */}
+        {showComparison && beforeImage && imageSrc && history.length > 1 && (
+          <div className="relative">
             <button
-              onClick={() => setShowBatch(false)}
-              className="p-1 hover:bg-neutral-700 rounded"
+              onClick={() => setShowComparison(false)}
+              className="absolute -top-2 -right-2 z-10 bg-neutral-700 hover:bg-neutral-600 rounded-full p-1"
             >
-              <X size={20} />
+              <X size={16} />
             </button>
+            <BeforeAfterSlider beforeSrc={beforeImage} afterSrc={imageSrc} />
           </div>
+        )}
 
-          <p className="text-neutral-400 text-sm mb-4">
-            Select multiple images to auto-cleanup. AI will detect and remove unwanted elements from all images.
-          </p>
+        {/* Editor */}
+        {imageSrc && !showComparison && (
+          <InpaintingCanvas
+            ref={canvasRef}
+            imageSrc={imageSrc}
+            onMaskReady={setMaskBlob}
+            brushSize={brushSize}
+            tool={tool}
+          />
+        )}
 
+        {!imageSrc && (
           <div
-            className="border-2 border-dashed border-neutral-600 rounded-xl p-6 text-center cursor-pointer hover:border-yellow-500 transition mb-4"
-            onClick={() => batchInputRef.current?.click()}
+            className="border-2 border-dashed border-neutral-700 rounded-3xl p-20 text-center text-neutral-500 cursor-pointer hover:border-purple-500 hover:text-purple-400 transition"
+            onClick={() => fileInputRef.current?.click()}
           >
-            <input
-              ref={batchInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) {
-                  setBatchFiles(Array.from(e.target.files));
-                }
-              }}
-            />
-            <Upload className="mx-auto mb-2 text-neutral-500" size={32} />
-            <p className="text-neutral-300">Click to select images</p>
-            <p className="text-neutral-500 text-xs mt-1">Select multiple files at once</p>
+            <Upload size={48} className="mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Drag & drop, paste, or click to upload</p>
+            <p className="text-sm mt-2 opacity-75">Supports: JPG, PNG, WebP</p>
           </div>
+        )}
+      </div>
 
-          {batchFiles.length > 0 && (
-            <div className="mb-4 max-h-32 overflow-y-auto">
-              <p className="text-sm text-yellow-400 mb-2">{batchFiles.length} files selected:</p>
-              <div className="space-y-1">
-                {batchFiles.slice(0, 5).map((f, i) => (
-                  <div key={i} className="text-xs text-neutral-400 truncate">{f.name}</div>
-                ))}
-                {batchFiles.length > 5 && (
-                  <div className="text-xs text-neutral-500">...and {batchFiles.length - 5} more</div>
+      {/* Batch Processing Modal */}
+      {showBatch && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowBatch(false)}>
+          <div
+            className="bg-neutral-800 rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-neutral-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Layers className="text-yellow-400" />
+                Batch Process
+              </h2>
+              <button
+                onClick={() => setShowBatch(false)}
+                className="p-1 hover:bg-neutral-700 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-neutral-400 text-sm mb-4">
+              Select multiple images to auto-cleanup. AI will detect and remove unwanted elements from all images.
+            </p>
+
+            <div
+              className="border-2 border-dashed border-neutral-600 rounded-xl p-6 text-center cursor-pointer hover:border-yellow-500 transition mb-4"
+              onClick={() => batchInputRef.current?.click()}
+            >
+              <input
+                ref={batchInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setBatchFiles(Array.from(e.target.files));
+                  }
+                }}
+              />
+              <Upload className="mx-auto mb-2 text-neutral-500" size={32} />
+              <p className="text-neutral-300">Click to select images</p>
+              <p className="text-neutral-500 text-xs mt-1">Select multiple files at once</p>
+            </div>
+
+            {batchFiles.length > 0 && (
+              <div className="mb-4 max-h-32 overflow-y-auto">
+                <p className="text-sm text-yellow-400 mb-2">{batchFiles.length} files selected:</p>
+                <div className="space-y-1">
+                  {batchFiles.slice(0, 5).map((f, i) => (
+                    <div key={i} className="text-xs text-neutral-400 truncate">{f.name}</div>
+                  ))}
+                  {batchFiles.length > 5 && (
+                    <div className="text-xs text-neutral-500">...and {batchFiles.length - 5} more</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowBatch(false); setBatchFiles([]); }}
+                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBatchProcess}
+                disabled={batchFiles.length === 0 || aiLoading === 'batch'}
+                className={`flex-1 px-4 py-2 rounded-lg transition flex items-center justify-center gap-2 ${batchFiles.length > 0 && aiLoading !== 'batch' ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-neutral-600 cursor-not-allowed'}`}
+              >
+                {aiLoading === 'batch' ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={16} />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Layers size={16} />
+                    Process {batchFiles.length} Images
+                  </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outpainting Modal */}
+      {showOutpaint && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowOutpaint(false)}>
+          <div
+            className="bg-neutral-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-neutral-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Expand className="text-amber-400" />
+                Extend Canvas
+              </h2>
+              <button
+                onClick={() => setShowOutpaint(false)}
+                className="p-1 hover:bg-neutral-700 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-neutral-400 text-sm mb-6">
+              Extend the image canvas in any direction. AI will fill the new areas intelligently.
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <label className="w-16 text-sm text-neutral-300">Top:</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  value={outpaintValues.top}
+                  onChange={(e) => setOutpaintValues(v => ({ ...v, top: Number(e.target.value) }))}
+                  className="flex-1 accent-amber-500"
+                />
+                <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.top}px</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="w-16 text-sm text-neutral-300">Bottom:</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  value={outpaintValues.bottom}
+                  onChange={(e) => setOutpaintValues(v => ({ ...v, bottom: Number(e.target.value) }))}
+                  className="flex-1 accent-amber-500"
+                />
+                <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.bottom}px</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="w-16 text-sm text-neutral-300">Left:</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  value={outpaintValues.left}
+                  onChange={(e) => setOutpaintValues(v => ({ ...v, left: Number(e.target.value) }))}
+                  className="flex-1 accent-amber-500"
+                />
+                <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.left}px</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="w-16 text-sm text-neutral-300">Right:</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  value={outpaintValues.right}
+                  onChange={(e) => setOutpaintValues(v => ({ ...v, right: Number(e.target.value) }))}
+                  className="flex-1 accent-amber-500"
+                />
+                <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.right}px</span>
               </div>
             </div>
-          )}
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => { setShowBatch(false); setBatchFiles([]); }}
-              className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg transition"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleBatchProcess}
-              disabled={batchFiles.length === 0 || aiLoading === 'batch'}
-              className={`flex-1 px-4 py-2 rounded-lg transition flex items-center justify-center gap-2 ${batchFiles.length > 0 && aiLoading !== 'batch' ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-neutral-600 cursor-not-allowed'}`}
-            >
-              {aiLoading === 'batch' ? (
-                <>
-                  <RefreshCw className="animate-spin" size={16} />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Layers size={16} />
-                  Process {batchFiles.length} Images
-                </>
-              )}
-            </button>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowOutpaint(false)}
+                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleOutpaint}
+                disabled={aiLoading === 'outpaint'}
+                className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg transition flex items-center justify-center gap-2"
+              >
+                {aiLoading === 'outpaint' ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={16} />
+                    Extending...
+                  </>
+                ) : (
+                  <>
+                    <Expand size={16} />
+                    Extend Canvas
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-
-    {/* Outpainting Modal */}
-    {showOutpaint && (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowOutpaint(false)}>
-        <div
-          className="bg-neutral-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-neutral-700"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Expand className="text-amber-400" />
-              Extend Canvas
-            </h2>
-            <button
-              onClick={() => setShowOutpaint(false)}
-              className="p-1 hover:bg-neutral-700 rounded"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <p className="text-neutral-400 text-sm mb-6">
-            Extend the image canvas in any direction. AI will fill the new areas intelligently.
-          </p>
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <label className="w-16 text-sm text-neutral-300">Top:</label>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                value={outpaintValues.top}
-                onChange={(e) => setOutpaintValues(v => ({ ...v, top: Number(e.target.value) }))}
-                className="flex-1 accent-amber-500"
-              />
-              <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.top}px</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="w-16 text-sm text-neutral-300">Bottom:</label>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                value={outpaintValues.bottom}
-                onChange={(e) => setOutpaintValues(v => ({ ...v, bottom: Number(e.target.value) }))}
-                className="flex-1 accent-amber-500"
-              />
-              <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.bottom}px</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="w-16 text-sm text-neutral-300">Left:</label>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                value={outpaintValues.left}
-                onChange={(e) => setOutpaintValues(v => ({ ...v, left: Number(e.target.value) }))}
-                className="flex-1 accent-amber-500"
-              />
-              <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.left}px</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="w-16 text-sm text-neutral-300">Right:</label>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                value={outpaintValues.right}
-                onChange={(e) => setOutpaintValues(v => ({ ...v, right: Number(e.target.value) }))}
-                className="flex-1 accent-amber-500"
-              />
-              <span className="w-12 text-right text-sm text-amber-400">{outpaintValues.right}px</span>
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={() => setShowOutpaint(false)}
-              className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg transition"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleOutpaint}
-              disabled={aiLoading === 'outpaint'}
-              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg transition flex items-center justify-center gap-2"
-            >
-              {aiLoading === 'outpaint' ? (
-                <>
-                  <RefreshCw className="animate-spin" size={16} />
-                  Extending...
-                </>
-              ) : (
-                <>
-                  <Expand size={16} />
-                  Extend Canvas
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-  </main>
-);
+      )}
+    </main>
+  );
 }
