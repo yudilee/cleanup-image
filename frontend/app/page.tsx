@@ -273,7 +273,10 @@ export default function Home() {
         } catch (error) {
           console.warn("Poll failed, retrying...", error);
           failureCount++;
-          if (failureCount > 10) throw error; // Give up after ~20 seconds of unresponsiveness
+          // CPU processing might starve the server for minutes. 
+          // We need to be very patient. 150 retries * 5s ~ 12 minutes of coverage.
+          if (failureCount > 150) throw error;
+          await new Promise(r => setTimeout(r, 5000)); // Wait 5s before retrying to relieve load
         }
       }
 
