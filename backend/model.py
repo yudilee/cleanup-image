@@ -27,7 +27,25 @@ class InpaintingModel:
         """
         Process the image with the mask using LaMa.
         """
-        result = self.lama(image, mask)
-        return result
+        try:
+            result = self.lama(image, mask)
+            return result
+        except Exception as e:
+            if self.device == "cuda":
+                print(f"Error processing on GPU: {e}")
+                print("Falling back to CPU...")
+                try:
+                    self.device = "cpu"
+                    from simple_lama_inpainting import SimpleLama
+                    self.lama = SimpleLama(device=torch.device("cpu"))
+                    result = self.lama(image, mask)
+                    print("CPU fallback successful.")
+                    return result
+                except Exception as e_cpu:
+                    print(f"Error on CPU fallback: {e_cpu}")
+                    raise e_cpu
+            else:
+                print(f"Error processing on CPU: {e}")
+                raise e
 
 inpainting_model = InpaintingModel()
