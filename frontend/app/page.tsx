@@ -282,7 +282,8 @@ export default function Home() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cleaned_image.${exportFormat}`;
+      const ext = exportFormat === 'jpeg' ? 'jpg' : exportFormat;
+      link.download = `cleaned_image.${ext}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
