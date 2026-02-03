@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import dynamic from "next/dynamic";
-import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal } from 'lucide-react';
 import { InpaintingCanvasHandle, ToolType } from "../components/InpaintingCanvas";
 
 // Dynamic imports for canvas components
@@ -62,6 +62,8 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   // AI Tools visibility
   const [showAiTools, setShowAiTools] = useState(false);
+  // Settings/More visibility
+  const [showSettings, setShowSettings] = useState(false);
 
   // Check if Web Share is available
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
@@ -700,113 +702,98 @@ export default function Home() {
           <span>Clean</span>
         </button>
 
-        <div className="w-px bg-neutral-600 mx-2"></div>
+        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
-        {/* Quality Preset */}
-        <div className="flex items-center gap-2 group relative">
-          <Zap size={16} className="text-yellow-400" />
-          <select
-            value={qualityPreset}
-            onChange={(e) => setQualityPreset(e.target.value as 'fast' | 'balanced' | 'high')}
-            className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer"
-            title="Processing quality - affects speed and detail"
-          >
-            <option value="fast">⚡ Fast (512px)</option>
-            <option value="balanced">⚖️ Balanced (1024px)</option>
-            <option value="high">✨ Original Quality</option>
-          </select>
-          {/* Tooltip */}
-          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64">
-            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 text-xs shadow-xl">
-              <p className="font-semibold text-white mb-2">Processing Quality</p>
-              <p className="text-neutral-300 mb-2">Affects AI processing speed & detail:</p>
-              <ul className="text-neutral-400 space-y-1">
-                <li><span className="text-green-400">Fast:</span> Quick preview, less detail</li>
-                <li><span className="text-yellow-400">Balanced:</span> Good speed & quality</li>
-                <li><span className="text-purple-400">Original:</span> Best quality, slower</li>
-              </ul>
-              <p className="text-neutral-500 mt-2 text-[10px]">💡 Output is always full resolution</p>
+        {/* Settings Toggle */}
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className={`p-2 rounded-lg transition ${showSettings ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
+          title="Toggle Settings & Advanced Tools"
+        >
+          <Settings size={20} />
+        </button>
+
+        {showSettings && (
+          <div className="flex items-center gap-4 animate-in fade-in slide-in-from-left-2 duration-200">
+            <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+
+            {/* Quality Preset */}
+            <div className="flex items-center gap-2 group relative">
+              <Zap size={16} className="text-yellow-400" />
+              <select
+                value={qualityPreset}
+                onChange={(e) => setQualityPreset(e.target.value as 'fast' | 'balanced' | 'high')}
+                className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer"
+                title="Processing quality"
+              >
+                <option value="fast">Fast (512px)</option>
+                <option value="balanced">Balanced (1024px)</option>
+                <option value="high">Original</option>
+              </select>
             </div>
-          </div>
-        </div>
 
-        {/* Device Info */}
-        <div className="flex items-center gap-1 text-xs text-neutral-400 bg-neutral-700/50 px-2 py-1 rounded">
-          <Cpu size={14} />
-          <span>{deviceInfo}</span>
-        </div>
+            {/* Device Info */}
+            <div className="flex items-center gap-1 text-xs text-neutral-400 bg-neutral-700/50 px-2 py-1 rounded">
+              <Cpu size={14} />
+              <span>{deviceInfo}</span>
+            </div>
 
-        <div className="w-px bg-neutral-600 mx-2"></div>
-
-        {imageSrc && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAiTools(!showAiTools)}
-              className={`flex items-center gap-2 px-3 py-1 rounded-lg border transition ${showAiTools ? 'bg-purple-900/50 border-purple-500 text-purple-300' : 'bg-neutral-800 border-neutral-600 text-neutral-400 hover:text-white'}`}
-              title="Toggle AI Magic Tools"
-            >
-              <Sparkles size={16} />
-              <span className="text-sm font-medium">Magic Tools</span>
-              {showAiTools ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-            </button>
-
-            {showAiTools && (
-              <div className="flex items-center gap-1 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-1 border border-purple-500/30 animate-in fade-in slide-in-from-left-5 duration-200">
-                <button
-                  onClick={handleAutoDetect}
-                  disabled={aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
-                  title="Auto-detect objects to remove (AI)"
-                >
-                  <Wand2 size={16} />
-                  {aiLoading === 'detect' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Auto</span>}
-                </button>
-                <button
-                  onClick={handleRefineEdges}
-                  disabled={!maskBlob || aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-                  title="Refine mask edges (AI)"
-                >
-                  <Sparkles size={16} />
-                  {aiLoading === 'refine' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Refine</span>}
-                </button>
-                <button
-                  onClick={handleRemoveBackground}
-                  disabled={aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
-                  title="Remove background (AI)"
-                >
-                  <ImageMinus size={16} />
-                  {aiLoading === 'remove-bg' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">No BG</span>}
-                </button>
-                <label
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
-                  title="Replace background with new image (AI)"
-                >
-                  <Upload size={16} />
-                  {aiLoading === 'replace-bg' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">New BG</span>}
-                  <input
-                    ref={bgInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleReplaceBackground(e.target.files[0]);
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  onClick={() => setShowOutpaint(true)}
-                  disabled={aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
-                  title="Extend canvas (Outpainting)"
-                >
-                  <Expand size={16} />
-                  {aiLoading === 'outpaint' ? <RefreshCw className="animate-spin" size={14} /> : <span className="hidden xl:inline">Extend</span>}
-                </button>
-              </div>
+            {imageSrc && (
+              <>
+                <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+                {/* Magic Tools */}
+                <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1">
+                  <button
+                    onClick={handleAutoDetect}
+                    disabled={aiLoading !== null || loading}
+                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
+                    title="Auto-detect"
+                  >
+                    <Wand2 size={16} />
+                  </button>
+                  <button
+                    onClick={handleRefineEdges}
+                    disabled={!maskBlob || aiLoading !== null || loading}
+                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+                    title="Refine edges"
+                  >
+                    <Sparkles size={16} />
+                  </button>
+                  <button
+                    onClick={handleRemoveBackground}
+                    disabled={aiLoading !== null || loading}
+                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
+                    title="Remove background"
+                  >
+                    <ImageMinus size={16} />
+                  </button>
+                  <label
+                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
+                    title="New BG"
+                  >
+                    <Upload size={16} />
+                    <input
+                      ref={bgInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleReplaceBackground(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </label>
+                  <button
+                    onClick={() => setShowOutpaint(true)}
+                    disabled={aiLoading !== null || loading}
+                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
+                    title="Extend"
+                  >
+                    <Expand size={16} />
+                  </button>
+                </div>
+              </>
             )}
           </div>
         )}
