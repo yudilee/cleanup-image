@@ -252,18 +252,28 @@ export default function Home() {
 
       // 2. Poll Status
       let resultBlob: Blob | null = null;
+      let failureCount = 0;
+
       while (true) {
         await new Promise(r => setTimeout(r, 2000)); // Wait 2s
-        const statusRes = await axios.get(`${API_BASE}/jobs/${job_id}`);
-        const status = statusRes.data.status;
 
-        if (status === 'completed') {
-          // 3. Get Result
-          const resultRes = await axios.get(`${API_BASE}/results/${job_id}`, { responseType: 'blob' });
-          resultBlob = resultRes.data;
-          break;
-        } else if (status === 'failed') {
-          throw new Error(statusRes.data.error || "Job failed");
+        try {
+          const statusRes = await axios.get(`${API_BASE}/jobs/${job_id}`);
+          const status = statusRes.data.status;
+          failureCount = 0; // Reset failure count on success
+
+          if (status === 'completed') {
+            // 3. Get Result
+            const resultRes = await axios.get(`${API_BASE}/results/${job_id}`, { responseType: 'blob' });
+            resultBlob = resultRes.data;
+            break;
+          } else if (status === 'failed') {
+            throw new Error(statusRes.data.error || "Job failed");
+          }
+        } catch (error) {
+          console.warn("Poll failed, retrying...", error);
+          failureCount++;
+          if (failureCount > 10) throw error; // Give up after ~20 seconds of unresponsiveness
         }
       }
 
