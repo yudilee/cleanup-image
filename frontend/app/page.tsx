@@ -616,7 +616,7 @@ export default function Home() {
       </p>
 
       {/* Toolbar */}
-      <div className="flex gap-4 mb-6 bg-neutral-800 p-4 rounded-xl shadow-lg border border-neutral-700">
+      <div className="flex gap-4 mb-6 bg-neutral-800 p-4 rounded-xl shadow-lg border border-neutral-700 max-w-[95vw] overflow-x-auto pb-4">
         <label className="flex items-center gap-2 cursor-pointer hover:text-blue-400 transition">
           <Upload size={20} />
           <span>Upload Image</span>
