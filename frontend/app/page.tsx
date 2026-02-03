@@ -77,6 +77,59 @@ export default function Home() {
     setHistory([url]);
   }, []);
 
+  // Helper to compress image if too large (Vercel 4.5MB limit)
+  const compressImage = async (file: File, maxSizeMB: number = 3.5): Promise<File> => {
+    if (file.size <= maxSizeMB * 1024 * 1024) return file;
+
+    console.log(`Compressing image ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)...`);
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // If generic compression isn't enough, we might need to resize.
+        // Start with full size, JPEG 0.9
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error("Canvas context failed"));
+          return;
+        }
+
+        // Fill white background to handle transparency if converting to JPEG
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Try reducing quality first
+        let quality = 0.9;
+        const tryCompress = (q: number) => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error("Compression failed"));
+              return;
+            }
+            if (blob.size <= maxSizeMB * 1024 * 1024 || q <= 0.5) {
+              console.log(`Compressed to ${(blob.size / 1024 / 1024).toFixed(2)}MB (Quality: ${q})`);
+              resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: "image/jpeg" }));
+            } else {
+              // Recursive retry with lower quality
+              tryCompress(q - 0.1);
+            }
+          }, "image/jpeg", q);
+        };
+
+        tryCompress(quality);
+      };
+      img.onerror = (e) => reject(e);
+    });
+  };
+
   // Use relative path for API calls. 
   // This requests goes to Next.js App Router, which we have configured (via route.ts) 
   // to proxy to the backend. This avoids CORS, Mixed Content, and Public Domain port blocking.
@@ -245,8 +298,16 @@ export default function Home() {
     const beforeUrl = imageSrc;
     setBeforeImage(beforeUrl);
 
+    // Compress if needed (Vercel limit workaround)
+    let fileToSend = imageFile;
+    try {
+      fileToSend = await compressImage(imageFile);
+    } catch (err) {
+      console.warn("Compression failed, sending original:", err);
+    }
+
     const formData = new FormData();
-    formData.append("image", imageFile);
+    formData.append("image", fileToSend);
     formData.append("mask", maskBlob, "mask.png");
 
     try {
@@ -354,8 +415,11 @@ export default function Home() {
     if (!imageFile) return;
     setAiLoading('detect');
 
+    let fileToSend = imageFile;
+    try { fileToSend = await compressImage(imageFile); } catch (e) { console.warn(e); }
+
     const formData = new FormData();
-    formData.append("image", imageFile);
+    formData.append("image", fileToSend);
 
     try {
       const response = await axios.post(`${API_BASE}/auto-mask?invert=true`, formData, {
@@ -410,8 +474,11 @@ export default function Home() {
     if (!imageFile) return;
     setAiLoading('remove-bg');
 
+    let fileToSend = imageFile;
+    try { fileToSend = await compressImage(imageFile); } catch (e) { console.warn(e); }
+
     const formData = new FormData();
-    formData.append("image", imageFile);
+    formData.append("image", fileToSend);
 
     try {
       const response = await axios.post(`${API_BASE}/remove-background`, formData, {
@@ -439,9 +506,17 @@ export default function Home() {
     if (!imageFile) return;
     setAiLoading('replace-bg');
 
+    let fileToSend = imageFile;
+    let bgToSend = bgFile;
+    try {
+      // Vercel limit is 4.5MB Total. For 2 files, we limit each to ~2MB.
+      fileToSend = await compressImage(imageFile, 2.0);
+      bgToSend = await compressImage(bgFile, 2.0);
+    } catch (e) { console.warn(e); }
+
     const formData = new FormData();
-    formData.append("image", imageFile);
-    formData.append("background", bgFile);
+    formData.append("image", fileToSend);
+    formData.append("background", bgToSend);
 
     try {
       const response = await axios.post(`${API_BASE}/replace-background`, formData, {
@@ -471,8 +546,11 @@ export default function Home() {
     if (!imageFile) return;
     setAiLoading('outpaint');
 
+    let fileToSend = imageFile;
+    try { fileToSend = await compressImage(imageFile); } catch (e) { console.warn(e); }
+
     const formData = new FormData();
-    formData.append("image", imageFile);
+    formData.append("image", fileToSend);
 
     const params = new URLSearchParams({
       extend_left: outpaintValues.left.toString(),
