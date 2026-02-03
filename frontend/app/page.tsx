@@ -618,28 +618,28 @@ export default function Home() {
       </p>
 
       {/* Toolbar */}
-      <div className="flex gap-4 mb-6 bg-neutral-800 p-4 rounded-xl shadow-lg border border-neutral-700 max-w-[95vw] overflow-x-auto pb-4">
-        <label className="flex items-center gap-2 cursor-pointer hover:text-blue-400 transition">
+      <div className="flex gap-2 mb-6 bg-neutral-800 p-3 rounded-xl shadow-lg border border-neutral-700 max-w-[95vw] overflow-x-auto pb-4 items-center">
+        <label className="p-2 rounded-lg hover:bg-neutral-700 cursor-pointer text-blue-400 transition" title="Upload Image">
           <Upload size={20} />
-          <span>Upload Image</span>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
         </label>
 
-        <div className="w-px bg-neutral-600 mx-2"></div>
+        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm">Brush Size:</span>
+        <div className="flex items-center gap-2" title="Brush Size">
+          <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
           <input
             type="range"
             min="5"
             max="100"
             value={brushSize}
             onChange={(e) => setBrushSize(Number(e.target.value))}
-            className="w-24 accent-purple-500"
+            className="w-20 accent-purple-500"
           />
+          <div className="w-4 h-4 rounded-full bg-white"></div>
         </div>
 
-        <div className="w-px bg-neutral-600 mx-2"></div>
+        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
         {/* Tool Toggle */}
         <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
