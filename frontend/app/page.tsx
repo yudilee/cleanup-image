@@ -160,8 +160,14 @@ export default function Home() {
     // 3. ENV Colab (Deployed Config)
     // 4. ENV Default (Stable Fallback)
 
-    let initialUrl = ENV_DEFAULT_URL;
-    let preferredUrl = ENV_COLAB_URL;
+    // Helper to sanitize URLs (remove trailing slash)
+    const cleanUrl = (url: string | undefined) => {
+      if (!url) return undefined;
+      return url.endsWith('/') ? url.slice(0, -1) : url;
+    };
+
+    let initialUrl = cleanUrl(ENV_DEFAULT_URL) || "/api";
+    let preferredUrl = cleanUrl(ENV_COLAB_URL);
 
     // Determine what to try first
     let targetUrl = preferredUrl || initialUrl; // Default to Colab if set, else Default
