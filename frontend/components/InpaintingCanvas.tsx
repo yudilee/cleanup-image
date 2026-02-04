@@ -11,6 +11,9 @@ export interface InpaintingCanvasHandle {
   clearLines: () => void;
   undo: () => void;
   redo: () => void;
+  resetZoom: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
 
 export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'lasso' | 'hand';
@@ -20,6 +23,7 @@ interface InpaintingCanvasProps {
   onMaskReady: (maskBlob: Blob | null) => void;
   brushSize: number;
   tool: ToolType;
+  onZoomChange?: (scale: number) => void;
 }
 
 interface MaskShape {
@@ -50,6 +54,7 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
   onMaskReady,
   brushSize,
   tool,
+  onZoomChange,
 }, ref) => {
   const [shapes, setShapes] = useState<MaskShape[]>([]);
   const [futureShapes, setFutureShapes] = useState<MaskShape[]>([]);
@@ -91,6 +96,25 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
         setShapes(s => [...s, nextShape]);
         return rest;
       });
+    },
+    resetZoom: () => {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+      if (onZoomChange) onZoomChange(1);
+    },
+    zoomIn: () => {
+      setScale(prev => {
+        const newScale = Math.min(5, prev * 1.2);
+        if (onZoomChange) onZoomChange(newScale);
+        return newScale;
+      });
+    },
+    zoomOut: () => {
+      setScale(prev => {
+        const newScale = Math.max(0.05, prev / 1.2);
+        if (onZoomChange) onZoomChange(newScale);
+        return newScale;
+      });
     }
   }));
 
@@ -113,6 +137,7 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
     // This prevents blank canvas during undo/image change transitions
     setScale(1);
     setPosition({ x: 0, y: 0 });
+    if (onZoomChange) onZoomChange(1);
   }, [imageSrc]);
 
   // Zoom with mouse wheel
@@ -143,7 +168,8 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
 
     setScale(clampedScale);
     setPosition(newPos);
-  }, [scale, position]);
+    if (onZoomChange) onZoomChange(clampedScale);
+  }, [scale, position, onZoomChange]);
 
   const getScaledPointerPosition = (stage: Konva.Stage) => {
     const pointer = stage.getPointerPosition();
@@ -293,32 +319,6 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
 
   return (
     <div className={`border border-gray-300 inline-block shadow-lg overflow-hidden rounded-lg relative ${tool === 'hand' ? 'cursor-grab active:cursor-grabbing' : ''}`}>
-      {/* Zoom controls */}
-      <div className="absolute top-2 right-2 z-10 flex gap-1 bg-black/50 rounded-lg p-1">
-        <button
-          onClick={() => setScale(Math.min(5, scale * 1.2))}
-          className="w-8 h-8 bg-neutral-700 hover:bg-neutral-600 rounded text-white text-lg font-bold"
-        >
-          +
-        </button>
-        <button
-          onClick={() => setScale(Math.max(0.5, scale / 1.2))}
-          className="w-8 h-8 bg-neutral-700 hover:bg-neutral-600 rounded text-white text-lg font-bold"
-        >
-          −
-        </button>
-        <button
-          onClick={() => { setScale(1); setPosition({ x: 0, y: 0 }); }}
-          className="px-2 h-8 bg-neutral-700 hover:bg-neutral-600 rounded text-white text-xs"
-        >
-          Reset
-        </button>
-      </div>
-
-      {/* Zoom level indicator */}
-      <div className="absolute bottom-2 right-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded pointer-events-none">
-        {Math.round(scale * 100)}%
-      </div>
 
       <Stage
         width={dimensions.width}

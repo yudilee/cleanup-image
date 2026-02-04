@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import dynamic from "next/dynamic";
-import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2 } from 'lucide-react';
+import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { InpaintingCanvasHandle, ToolType } from "../components/InpaintingCanvas";
 
 // Dynamic imports for canvas components
@@ -38,6 +38,7 @@ export default function Home() {
   // History for undo
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const canvasRef = useRef<InpaintingCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -963,6 +964,39 @@ export default function Home() {
           <Redo2 size={20} />
         </button>
 
+        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => canvasRef.current?.zoomOut()}
+            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+            title="Zoom Out"
+          >
+            <ZoomOut size={20} />
+          </button>
+
+          <span className="text-xs text-neutral-400 w-10 text-center select-none font-mono">
+            {Math.round(zoomLevel * 100)}%
+          </span>
+
+          <button
+            onClick={() => canvasRef.current?.zoomIn()}
+            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+            title="Zoom In"
+          >
+            <ZoomIn size={20} />
+          </button>
+
+          <button
+            onClick={() => canvasRef.current?.resetZoom()}
+            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+            title="Reset Zoom"
+          >
+            <Maximize size={20} />
+          </button>
+        </div>
+
         <button
           onClick={handleReset}
           disabled={history.length <= 1 || loading}
@@ -1114,6 +1148,7 @@ export default function Home() {
             onMaskReady={setMaskBlob}
             brushSize={brushSize}
             tool={tool}
+            onZoomChange={setZoomLevel}
           />
         )}
 
