@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import dynamic from "next/dynamic";
-import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2, ZoomIn, ZoomOut, Maximize, Link2 } from 'lucide-react';
+import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2, ZoomIn, ZoomOut, Maximize, Link2, Copy, Check } from 'lucide-react';
 import { InpaintingCanvasHandle, ToolType } from "../components/InpaintingCanvas";
 
 // Dynamic imports for canvas components
@@ -68,6 +68,7 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [showConnection, setShowConnection] = useState(false);
   const [apiBaseUrl, setApiBaseUrl] = useState("/api");
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Check if Web Share is available
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
@@ -1478,6 +1479,35 @@ export default function Home() {
                 Default: <code className="bg-neutral-900 px-1 rounded">/api</code> (Local Proxy)
               </p>
             </div>
+
+            {/* Share Link Section */}
+            {apiBaseUrl !== '/api' && (
+              <div className="mb-6 p-3 bg-neutral-900 rounded-lg border border-neutral-700">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-neutral-400 font-medium">Share this connection</span>
+                  {copiedLink && <span className="text-xs text-green-400 flex items-center gap-1"><Check size={10} /> Copied!</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 overflow-hidden">
+                    <code className="text-xs text-neutral-500 whitespace-nowrap block truncate">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/?api=${apiBaseUrl}` : ''}
+                    </code>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/?api=${apiBaseUrl}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    className="p-1.5 bg-neutral-800 hover:bg-neutral-700 rounded text-neutral-300 transition"
+                    title="Copy Shareable Link"
+                  >
+                    {copiedLink ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3">
               <button
