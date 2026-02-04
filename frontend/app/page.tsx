@@ -955,6 +955,15 @@ export default function Home() {
         </button>
 
         <button
+          onClick={handleRedo}
+          disabled={history.length === 0 || historyIndex >= history.length - 1 || loading}
+          className={`p-2 rounded-lg transition ${historyIndex < history.length - 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          <Redo2 size={20} />
+        </button>
+
+        <button
           onClick={handleReset}
           disabled={history.length <= 1 || loading}
           className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
