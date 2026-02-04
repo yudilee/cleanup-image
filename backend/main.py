@@ -276,7 +276,6 @@ async def refine_edges(
     
     return StreamingResponse(output, media_type="image/png")
 
-
 @app.post("/remove-background")
 async def remove_background(image: UploadFile = File(...)):
     """
@@ -284,18 +283,24 @@ async def remove_background(image: UploadFile = File(...)):
     Returns image with transparent background
     """
     from rembg import remove
+    try:
+        image_data = await image.read()
+        image_pil = Image.open(BytesIO(image_data)).convert("RGBA")
+        
+        session = get_rembg_session()
+        result = remove(image_pil, session=session)
+        
+        output = BytesIO()
+        result.save(output, format="PNG")
+        output.seek(0)
     
-    image_data = await image.read()
-    image_pil = Image.open(BytesIO(image_data)).convert("RGBA")
+        return StreamingResponse(output, media_type="image/png")
     
-    session = get_rembg_session()
-    result = remove(image_pil, session=session)
-    
-    output = BytesIO()
-    result.save(output, format="PNG")
-    output.seek(0)
-    
-    return StreamingResponse(output, media_type="image/png")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Error in remove_background: {e}")
+        raise HTTPException(status_code=500, detail=f"Background removal failed: {str(e)}")
 
 
 @app.post("/replace-background")
@@ -343,26 +348,32 @@ async def auto_mask(
     Auto-generate mask for foreground objects (convenience endpoint)
     """
     from rembg import remove
-    
-    image_data = await image.read()
-    image_pil = Image.open(BytesIO(image_data)).convert("RGB")
-    
-    session = get_rembg_session()
-    mask = remove(image_pil, session=session, only_mask=True)
-    
-    if mask.mode == 'RGBA':
-        mask = mask.split()[-1]
-    else:
-        mask = mask.convert('L')
-    
-    if invert:
-        mask = Image.eval(mask, lambda x: 255 - x)
-    
-    output = BytesIO()
-    mask.save(output, format="PNG")
-    output.seek(0)
+    try:
+        image_data = await image.read()
+        image_pil = Image.open(BytesIO(image_data)).convert("RGB")
+        
+        session = get_rembg_session()
+        mask = remove(image_pil, session=session, only_mask=True)
+        
+        if mask.mode == 'RGBA':
+            mask = mask.split()[-1]
+        else:
+            mask = mask.convert('L')
+        
+        if invert:
+            mask = Image.eval(mask, lambda x: 255 - x)
+        
+        output = BytesIO()
+        mask.save(output, format="PNG")
+        output.seek(0)
     
     return StreamingResponse(output, media_type="image/png")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Error in auto_mask: {e}")
+        raise HTTPException(status_code=500, detail=f"Auto-detection failed: {str(e)}")
 
 
 @app.post("/outpaint")
