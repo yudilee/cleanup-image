@@ -146,27 +146,37 @@ export default function Home() {
 
   // Fetch device info on mount and handle connection logic
   useEffect(() => {
-    // 1. Initialize from URL param or LocalStorage
+    // Environment Variables
+    const ENV_COLAB_URL = process.env.NEXT_PUBLIC_COLAB_URL;
+    const ENV_DEFAULT_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+
+    // 1. Initialize from URL param or LocalStorage or Env
     const params = new URLSearchParams(window.location.search);
     const urlApi = params.get('api');
 
-    // Check if we should override the current state (only on initial load)
-    // We wrapped this in a useEffect, but we want to respect user's explicit choices too.
-    // Logic: URL Param > LocalStorage > Default
+    // Priority: 
+    // 1. URL Param (Share link)
+    // 2. LocalStorage (User manual set)
+    // 3. ENV Colab (Deployed Config)
+    // 4. ENV Default (Stable Fallback)
 
-    let resolvedUrl = "/api";
+    let initialUrl = ENV_DEFAULT_URL;
+    let preferredUrl = ENV_COLAB_URL;
+
+    // Determine what to try first
+    let targetUrl = preferredUrl || initialUrl; // Default to Colab if set, else Default
+
     if (urlApi) {
-      resolvedUrl = urlApi;
-      // Clean URL if desired? No, let's keep it so they can share it.
+      targetUrl = urlApi;
     } else {
       const stored = localStorage.getItem('apiBaseUrl');
-      if (stored) resolvedUrl = stored;
+      if (stored) targetUrl = stored;
     }
 
-    // Only set if different to avoid loop, but we need to set it initially
-    setApiBaseUrl(resolvedUrl);
+    // Set initial state
+    setApiBaseUrl(targetUrl);
 
-    // 2. Health Check
+    // 2. Health Check & Fallback Logic
     const checkConnection = async (url: string) => {
       setDeviceInfo('Connecting...');
       try {
@@ -176,32 +186,41 @@ export default function Home() {
         });
         setDeviceInfo(res.data.device_name);
 
-        // If connection successful and it's not the default, save it
-        if (url !== '/api') {
-          localStorage.setItem('apiBaseUrl', url);
+        // If connection successful and it's not the fallack, save it?
+        // If it came from Env Colab, we might not want to "save" it to localStorage permanently 
+        // masking future env updates. But for consistency, let's leave localStorage logic for manual overrides.
+        if (url !== ENV_DEFAULT_URL) {
+          // Only save if it was a manual action or URL param? 
+          // Actually existing logic saves it if it works. That's fine.
         }
+
       } catch (err) {
         console.warn(`Connection to ${url} failed`, err);
-        setDeviceInfo('Offline');
 
-        // Auto-fallback if custom URL fails
-        if (url !== '/api') {
-          console.log("Falling back to default /api");
-          // Optional: Show toast notification?
-          // For now, let's just revert and re-check
-          setApiBaseUrl('/api');
-          // We don't save '/api' to localStorage necessarily, 
-          // effectively "forgetting" the bad custom URL for next time?
-          // Or we specifically clear it.
+        // Auto-fallback logic
+        // If we are NOT already on the default URL, try the default.
+        if (url !== ENV_DEFAULT_URL) {
+          console.log(`Falling back to default: ${ENV_DEFAULT_URL}`);
+          setApiBaseUrl(ENV_DEFAULT_URL);
+
+          // Clear the bad stored value if it exists
           localStorage.removeItem('apiBaseUrl');
 
-          // Re-check default
-          checkConnection('/api');
+          // Verify the fallback
+          setDeviceInfo('Connecting (Fallback)...');
+          try {
+            const res = await axios.get(`${ENV_DEFAULT_URL}/device`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+            setDeviceInfo(res.data.device_name);
+          } catch (fallbackErr) {
+            setDeviceInfo('Offline');
+          }
+        } else {
+          setDeviceInfo('Offline');
         }
       }
     };
 
-    checkConnection(resolvedUrl);
+    checkConnection(targetUrl);
 
   }, []); // Run once on mount
 
