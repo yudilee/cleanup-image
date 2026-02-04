@@ -367,7 +367,7 @@ async def auto_mask(
         mask.save(output, format="PNG")
         output.seek(0)
     
-    return StreamingResponse(output, media_type="image/png")
+        return StreamingResponse(output, media_type="image/png")
 
     except Exception as e:
         import traceback
