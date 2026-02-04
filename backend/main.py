@@ -34,9 +34,10 @@ _rembg_session = None
 # Structure: { job_id: { "status": "processing" | "completed" | "failed", "result": bytes | None, "error": str | None } }
 JOBS = {}
 
-def process_inpaint_job(job_id: str, image_pil: Image.Image, mask_pil: Image.Image, max_dim: int, original_size: tuple):
+def process_inpaint_job(job_id: str, image_pil: Image.Image, mask_pil: Image.Image, max_dim: int, original_size: tuple, model_id: str = "lama"):
     try:
-        # Resize if image exceeds max dimension
+        # Resize if image exceeds max dimension (only for LaMa, SDXL handles its own resolution usually, but good to cap for upload speed)
+        # SDXL works best at 1024x1024.
         w, h = image_pil.size
         if max(w, h) > max_dim:
             scale = max_dim / max(w, h)
@@ -46,7 +47,7 @@ def process_inpaint_job(job_id: str, image_pil: Image.Image, mask_pil: Image.Ima
             mask_pil = mask_pil.resize((new_w, new_h), Image.NEAREST)
 
         # Process
-        result_pil = inpainting_model.process(image_pil, mask_pil)
+        result_pil = inpainting_model.process(image_pil, mask_pil, model_id=model_id)
 
         # Resize back to original size if we downscaled
         if result_pil.size != original_size:
@@ -89,12 +90,18 @@ def get_device():
         "device_name": "GPU (CUDA)" if "cuda" in inpainting_model.device else "CPU",
     })
 
+@app.get("/models")
+def get_models():
+    """Return list of available models based on hardware capabilities"""
+    return inpainting_model.get_available_models()
+
 @app.post("/inpaint")
 async def inpaint(
     background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     mask: UploadFile = File(...),
-    quality: Optional[str] = Query("balanced", description="Quality preset: fast, balanced, high")
+    quality: Optional[str] = Query("balanced", description="Quality preset: fast, balanced, high"),
+    model: str = Query("lama", description="Model ID: lama, sdxl")
 ):
     # Read image
     image_data = await image.read()
@@ -124,7 +131,7 @@ async def inpaint(
     JOBS[job_id] = {"status": "processing", "result": None, "error": None}
     
     # Run in background
-    background_tasks.add_task(process_inpaint_job, job_id, image_pil, mask_pil, max_dim, original_size)
+    background_tasks.add_task(process_inpaint_job, job_id, image_pil, mask_pil, max_dim, original_size, model)
 
     return {"job_id": job_id, "status": "processing"}
 
@@ -401,7 +408,8 @@ async def outpaint(
 @app.post("/batch-inpaint")
 async def batch_inpaint(
     images: List[UploadFile] = File(...),
-    quality: str = Query("balanced", description="Quality preset: fast, balanced, high")
+    quality: str = Query("balanced", description="Quality preset: fast, balanced, high"),
+    model: str = Query("lama", description="Model ID: lama, sdxl")
 ):
     """
     6.1 Batch Processing - Process multiple images with auto-generated masks
@@ -440,8 +448,8 @@ async def batch_inpaint(
                     mask = mask.convert('L')
                 mask = Image.eval(mask, lambda x: 255 - x)  # Invert
                 
-                # Process with LaMa
-                result_pil = inpainting_model.process(image_pil, mask)
+                # Process
+                result_pil = inpainting_model.process(image_pil, mask, model_id=model)
                 
                 # Resize back to original
                 if result_pil.size != original_size:

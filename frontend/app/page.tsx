@@ -34,6 +34,8 @@ export default function Home() {
   // Quality preset
   const [qualityPreset, setQualityPreset] = useState<'fast' | 'balanced' | 'high'>('high');
   const [deviceInfo, setDeviceInfo] = useState<string>('Loading...');
+  const [availableModels, setAvailableModels] = useState<{ id: string, name: string }[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("lama");
 
   // History for undo
   const [history, setHistory] = useState<string[]>([]);
@@ -198,6 +200,23 @@ export default function Home() {
         if (url !== ENV_DEFAULT_URL) {
           // Only save if it was a manual action or URL param? 
           // Actually existing logic saves it if it works. That's fine.
+        }
+
+        // Fetch available models
+        try {
+          const modelsRes = await axios.get(`${url}/models`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+            timeout: 3000
+          });
+          setAvailableModels(modelsRes.data);
+          // If current selected model is not in the list, reset to first
+          if (modelsRes.data.length > 0) {
+            const valid = modelsRes.data.find((m: any) => m.id === selectedModel);
+            if (!valid) setSelectedModel(modelsRes.data[0].id);
+          }
+        } catch (modelErr) {
+          console.warn("Failed to fetch models, defaulting to LaMa", modelErr);
+          setAvailableModels([{ id: 'lama', name: 'LaMa' }]);
         }
 
       } catch (err) {
@@ -420,7 +439,7 @@ export default function Home() {
 
     try {
       // 1. Submit Job
-      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}`, formData, {
+      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}&model=${selectedModel}`, formData, {
         headers: { 'ngrok-skip-browser-warning': 'true' }
       });
       const { job_id } = response.data;
@@ -747,7 +766,7 @@ export default function Home() {
 
     try {
       const response = await axios.post(
-        `${apiBaseUrl}/batch-inpaint?quality=${qualityPreset}`,
+        `${apiBaseUrl}/batch-inpaint?quality=${qualityPreset}&model=${selectedModel}`,
         formData,
         {
           responseType: "blob",
@@ -1026,6 +1045,23 @@ export default function Home() {
 
           {/* Settings Group (Always visible now) */}
           <div className="flex items-center gap-4">
+            {/* Model Selector (Only if > 1 model) */}
+            {availableModels.length > 1 && (
+              <div className="flex items-center gap-2 group relative">
+                <Cpu size={16} className="text-purple-400" />
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer border border-neutral-600 focus:border-purple-500 outline-none max-w-[120px] truncate"
+                  title="Select AI Model"
+                >
+                  {availableModels.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Quality Preset */}
             <div className="flex items-center gap-2 group relative">
               <Zap size={16} className="text-yellow-400" />
