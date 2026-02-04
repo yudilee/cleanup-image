@@ -92,7 +92,7 @@ class ModelManager:
             
         return models
 
-    def process(self, image: Image.Image, mask: Image.Image, model_id: str = "lama") -> tuple[Image.Image, str]:
+    def process(self, image: Image.Image, mask: Image.Image, model_id: str = "lama", prompt: str = None) -> tuple[Image.Image, str]:
         """
         Process the image with the specified model. Returns (ResultImage, ActualModelID)
         """
@@ -112,23 +112,26 @@ class ModelManager:
 
         # Dispatch
         if actual_model == "sdxl":
-            return self._process_sdxl(image, mask), "sdxl"
+            return self._process_sdxl(image, mask, prompt=prompt), "sdxl"
         else:
             return self._process_lama(image, mask), "lama"
 
     def _process_lama(self, image, mask):
         return self.models["lama"](image, mask)
 
-    def _process_sdxl(self, image, mask):
+    def _process_sdxl(self, image, mask, prompt=None):
         pipe = self.models["sdxl"]
         
         # SDXL requires inputs to be divisible by 8 usually, pipelines handle it but good to be safe.
         # Also SDXL works best at 1024x1024.
         
+        # Use provided prompt or default cleaning prompt
+        final_prompt = prompt if prompt and prompt.strip() else "high resolution, seamless integration, realistic background, 8k"
+
         # Generate with high strength to ensure Inpainting respects the mask
         # strength=1.0 means fully denoise the masked area
         result = pipe(
-            prompt="high resolution, seamless integration, realistic background, 8k", 
+            prompt=final_prompt, 
             negative_prompt="artifacts, blur, darkness, low quality, distortion, text, watermark",
             image=image,
             mask_image=mask,

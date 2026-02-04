@@ -36,6 +36,7 @@ export default function Home() {
   const [deviceInfo, setDeviceInfo] = useState<string>('Loading...');
   const [availableModels, setAvailableModels] = useState<{ id: string, name: string }[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("lama");
+  const [prompt, setPrompt] = useState("");
 
   // History for undo
   const [history, setHistory] = useState<string[]>([]);
@@ -439,7 +440,8 @@ export default function Home() {
 
     try {
       // 1. Submit Job
-      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}&model=${selectedModel}`, formData, {
+      const promptParam = prompt ? `&prompt=${encodeURIComponent(prompt)}` : "";
+      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}&model=${selectedModel}${promptParam}`, formData, {
         headers: { 'ngrok-skip-browser-warning': 'true' }
       });
       const { job_id } = response.data;
@@ -779,8 +781,9 @@ export default function Home() {
     });
 
     try {
+      const promptParam = prompt ? `&prompt=${encodeURIComponent(prompt)}` : "";
       const response = await axios.post(
-        `${apiBaseUrl}/batch-inpaint?quality=${qualityPreset}&model=${selectedModel}`,
+        `${apiBaseUrl}/batch-inpaint?quality=${qualityPreset}&model=${selectedModel}${promptParam}`,
         formData,
         {
           responseType: "blob",
@@ -1097,6 +1100,20 @@ export default function Home() {
               <span>{deviceInfo}</span>
             </div>
 
+            {/* Magic Prompt (SDXL Only) */}
+            {selectedModel === 'sdxl' && (
+              <div className="flex items-center gap-2 group relative">
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Magic Prompt (Optional)..."
+                  className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm border border-neutral-600 focus:border-purple-500 outline-none w-48 placeholder-neutral-500"
+                  title="Describe what to fill the hole with (leave empty to just clean)"
+                />
+              </div>
+            )}
+
             {/* Connection Settings */}
             <button
               onClick={() => setShowConnection(true)}
@@ -1112,7 +1129,10 @@ export default function Home() {
             <>
               <div className="w-px h-8 bg-neutral-600 mx-1"></div>
               {/* Magic Tools */}
-              <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1 relative group">
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
+                  Magic Tools
+                </span>
                 <button
                   onClick={handleAutoDetect}
                   disabled={aiLoading !== null || loading}
