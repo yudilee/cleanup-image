@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import dynamic from "next/dynamic";
-import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2, ZoomIn, ZoomOut, Maximize, Link2 } from 'lucide-react';
 import { InpaintingCanvasHandle, ToolType } from "../components/InpaintingCanvas";
 
 // Dynamic imports for canvas components
@@ -66,6 +66,8 @@ export default function Home() {
   const [showAiTools, setShowAiTools] = useState(false);
   // Settings/More visibility
   const [showSettings, setShowSettings] = useState(false);
+  const [showConnection, setShowConnection] = useState(false);
+  const [apiBaseUrl, setApiBaseUrl] = useState("/api");
 
   // Check if Web Share is available
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
@@ -136,11 +138,14 @@ export default function Home() {
   // Use relative path for API calls. 
   // This requests goes to Next.js App Router, which we have configured (via route.ts) 
   // to proxy to the backend. This avoids CORS, Mixed Content, and Public Domain port blocking.
-  const API_BASE = "/api";
+  // Use relative path for API calls. 
+  // This requests goes to Next.js App Router, which we have configured (via route.ts) 
+  // to proxy to the backend. This avoids CORS, Mixed Content, and Public Domain port blocking.
+  // const API_BASE = "/api"; (REPLACED BY STATE apiBaseUrl)
 
   // Fetch device info on mount
   useEffect(() => {
-    axios.get(`${API_BASE}/device`)
+    axios.get(`${apiBaseUrl}/device`)
       .then(res => setDeviceInfo(res.data.device_name))
       .catch(() => setDeviceInfo('Backend offline'));
   }, []);
@@ -331,7 +336,7 @@ export default function Home() {
 
     try {
       // 1. Submit Job
-      const response = await axios.post(`${API_BASE}/inpaint?quality=${qualityPreset}`, formData);
+      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}`, formData);
       const { job_id } = response.data;
 
       // 2. Poll Status
@@ -342,13 +347,13 @@ export default function Home() {
         await new Promise(r => setTimeout(r, 2000)); // Wait 2s
 
         try {
-          const statusRes = await axios.get(`${API_BASE}/jobs/${job_id}`);
+          const statusRes = await axios.get(`${apiBaseUrl}/jobs/${job_id}`);
           const status = statusRes.data.status;
           failureCount = 0; // Reset failure count on success
 
           if (status === 'completed') {
             // 3. Get Result
-            const resultRes = await axios.get(`${API_BASE}/results/${job_id}`, { responseType: 'blob' });
+            const resultRes = await axios.get(`${apiBaseUrl}/results/${job_id}`, { responseType: 'blob' });
             resultBlob = resultRes.data;
             break;
           } else if (status === 'failed') {
@@ -464,7 +469,7 @@ export default function Home() {
     formData.append("image", fileToSend);
 
     try {
-      const response = await axios.post(`${API_BASE}/auto-mask?invert=true`, formData, {
+      const response = await axios.post(`${apiBaseUrl}/auto-mask?invert=true`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -496,7 +501,7 @@ export default function Home() {
     formData.append("mask", maskBlob, "mask.png");
 
     try {
-      const response = await axios.post(`${API_BASE}/refine-edges`, formData, {
+      const response = await axios.post(`${apiBaseUrl}/refine-edges`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -523,7 +528,7 @@ export default function Home() {
     formData.append("image", fileToSend);
 
     try {
-      const response = await axios.post(`${API_BASE}/remove-background`, formData, {
+      const response = await axios.post(`${apiBaseUrl}/remove-background`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -565,7 +570,7 @@ export default function Home() {
     formData.append("background", bgToSend);
 
     try {
-      const response = await axios.post(`${API_BASE}/replace-background`, formData, {
+      const response = await axios.post(`${apiBaseUrl}/replace-background`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -610,7 +615,7 @@ export default function Home() {
     });
 
     try {
-      const response = await axios.post(`${API_BASE}/outpaint?${params}`, formData, {
+      const response = await axios.post(`${apiBaseUrl}/outpaint?${params}`, formData, {
         responseType: "blob",
         timeout: 300000,
       });
@@ -651,7 +656,7 @@ export default function Home() {
 
     try {
       const response = await axios.post(
-        `${API_BASE}/batch-inpaint?quality=${qualityPreset}`,
+        `${apiBaseUrl}/batch-inpaint?quality=${qualityPreset}`,
         formData,
         {
           responseType: "blob",
@@ -885,6 +890,15 @@ export default function Home() {
               <Cpu size={14} />
               <span>{deviceInfo}</span>
             </div>
+
+            {/* Connection Settings */}
+            <button
+              onClick={() => setShowConnection(true)}
+              className={`p-1 rounded bg-neutral-700/50 hover:bg-neutral-600 transition ${apiBaseUrl !== '/api' ? 'text-green-400' : 'text-neutral-400'}`}
+              title="Configure Backend Connection (Colab/Remote)"
+            >
+              <Link2 size={16} />
+            </button>
 
             {imageSrc && (
               <>
@@ -1350,6 +1364,68 @@ export default function Home() {
                     Extend Canvas
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Connection Modal */}
+      {showConnection && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowConnection(false)}>
+          <div
+            className="bg-neutral-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-neutral-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Link2 className="text-green-400" />
+                Backend Connection
+              </h2>
+              <button
+                onClick={() => setShowConnection(false)}
+                className="p-1 hover:bg-neutral-700 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-neutral-400 text-sm mb-4">
+              Configure the API endpoint. Use this to connect to a remote backend (e.g., Google Colab via Ngrok).
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm text-neutral-300 mb-2">API Base URL</label>
+              <input
+                type="text"
+                value={apiBaseUrl}
+                onChange={(e) => setApiBaseUrl(e.target.value)}
+                placeholder="https://xxxx.ngrok-free.app"
+                className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 text-white focus:border-green-500 focus:outline-none"
+              />
+              <p className="text-xs text-neutral-500 mt-2">
+                Default: <code className="bg-neutral-900 px-1 rounded">/api</code> (Local Proxy)
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setApiBaseUrl("/api")}
+                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition"
+              >
+                Reset to Default
+              </button>
+              <button
+                onClick={() => {
+                  setShowConnection(false);
+                  // Test connection
+                  setDeviceInfo('Testing...');
+                  axios.get(`${apiBaseUrl}/device`)
+                    .then(res => setDeviceInfo(res.data.device_name))
+                    .catch(() => setDeviceInfo('Connection Failed'));
+                }}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-white font-medium transition"
+              >
+                Save & Test
               </button>
             </div>
           </div>
