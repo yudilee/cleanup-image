@@ -333,6 +333,9 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
         x={position.x}
         y={position.y}
         draggable={tool === 'hand'}
+        onDragEnd={(e) => {
+          setPosition({ x: e.target.x(), y: e.target.y() });
+        }}
       >
         <Layer>
           <URLImage
