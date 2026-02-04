@@ -143,15 +143,70 @@ export default function Home() {
   // to proxy to the backend. This avoids CORS, Mixed Content, and Public Domain port blocking.
   // const API_BASE = "/api"; (REPLACED BY STATE apiBaseUrl)
 
-  // Fetch device info on mount
+  // Fetch device info on mount and handle connection logic
   useEffect(() => {
-    // Add skip-browser-warning header for ngrok
-    axios.get(`${apiBaseUrl}/device`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
-      .then(res => setDeviceInfo(res.data.device_name))
-      .catch(() => setDeviceInfo('Backend offline'));
-  }, [apiBaseUrl]); // Re-run when URL changes
+    // 1. Initialize from URL param or LocalStorage
+    const params = new URLSearchParams(window.location.search);
+    const urlApi = params.get('api');
+
+    // Check if we should override the current state (only on initial load)
+    // We wrapped this in a useEffect, but we want to respect user's explicit choices too.
+    // Logic: URL Param > LocalStorage > Default
+
+    let resolvedUrl = "/api";
+    if (urlApi) {
+      resolvedUrl = urlApi;
+      // Clean URL if desired? No, let's keep it so they can share it.
+    } else {
+      const stored = localStorage.getItem('apiBaseUrl');
+      if (stored) resolvedUrl = stored;
+    }
+
+    // Only set if different to avoid loop, but we need to set it initially
+    setApiBaseUrl(resolvedUrl);
+
+    // 2. Health Check
+    const checkConnection = async (url: string) => {
+      setDeviceInfo('Connecting...');
+      try {
+        const res = await axios.get(`${url}/device`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+          timeout: 5000 // 5s timeout
+        });
+        setDeviceInfo(res.data.device_name);
+
+        // If connection successful and it's not the default, save it
+        if (url !== '/api') {
+          localStorage.setItem('apiBaseUrl', url);
+        }
+      } catch (err) {
+        console.warn(`Connection to ${url} failed`, err);
+        setDeviceInfo('Offline');
+
+        // Auto-fallback if custom URL fails
+        if (url !== '/api') {
+          console.log("Falling back to default /api");
+          // Optional: Show toast notification?
+          // For now, let's just revert and re-check
+          setApiBaseUrl('/api');
+          // We don't save '/api' to localStorage necessarily, 
+          // effectively "forgetting" the bad custom URL for next time?
+          // Or we specifically clear it.
+          localStorage.removeItem('apiBaseUrl');
+
+          // Re-check default
+          checkConnection('/api');
+        }
+      }
+    };
+
+    checkConnection(resolvedUrl);
+
+  }, []); // Run once on mount
+
+  // Watch for manual changes to apiBaseUrl to save them (handled in the modal, but good to have)
+  // Actually, we should probably separate "Init" from "Manual Update".
+  // Let's modify the Modal save button to do the saving, and this effect just handles init.
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -896,8 +951,8 @@ export default function Home() {
             </div>
 
             {/* Device Info */}
-            <div className="flex items-center gap-1 text-xs text-neutral-400 bg-neutral-700/50 px-2 py-1 rounded">
-              <Cpu size={14} />
+            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition ${apiBaseUrl !== '/api' ? 'bg-green-900/40 text-green-400 border border-green-800' : 'bg-neutral-700/50 text-neutral-400'}`} title={apiBaseUrl !== '/api' ? `Connected to: ${apiBaseUrl}` : 'Local Backend'}>
+              {apiBaseUrl !== '/api' ? <Link2 size={14} /> : <Cpu size={14} />}
               <span>{deviceInfo}</span>
             </div>
 
@@ -1426,7 +1481,10 @@ export default function Home() {
 
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setApiBaseUrl("/api")}
+                onClick={() => {
+                  setApiBaseUrl("/api");
+                  localStorage.removeItem('apiBaseUrl');
+                }}
                 className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition"
               >
                 Reset to Default
@@ -1434,6 +1492,14 @@ export default function Home() {
               <button
                 onClick={() => {
                   setShowConnection(false);
+
+                  // Save to LocalStorage
+                  if (apiBaseUrl !== '/api') {
+                    localStorage.setItem('apiBaseUrl', apiBaseUrl);
+                  } else {
+                    localStorage.removeItem('apiBaseUrl');
+                  }
+
                   // Test connection
                   setDeviceInfo('Testing...');
                   axios.get(`${apiBaseUrl}/device`, {
