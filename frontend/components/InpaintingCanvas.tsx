@@ -13,7 +13,7 @@ export interface InpaintingCanvasHandle {
   redo: () => void;
 }
 
-export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'lasso';
+export type ToolType = 'brush' | 'eraser' | 'rectangle' | 'lasso' | 'hand';
 
 interface InpaintingCanvasProps {
   imageSrc: string;
@@ -292,7 +292,7 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
   if (!imageSrc) return <div>Please upload an image</div>;
 
   return (
-    <div className="border border-gray-300 inline-block shadow-lg overflow-hidden rounded-lg relative">
+    <div className={`border border-gray-300 inline-block shadow-lg overflow-hidden rounded-lg relative ${tool === 'hand' ? 'cursor-grab active:cursor-grabbing' : ''}`}>
       {/* Zoom controls */}
       <div className="absolute top-2 right-2 z-10 flex gap-1 bg-black/50 rounded-lg p-1">
         <button
@@ -332,7 +332,7 @@ const InpaintingCanvas = React.forwardRef<InpaintingCanvasHandle, InpaintingCanv
         scaleY={scale}
         x={position.x}
         y={position.y}
-        draggable={tool === 'brush' ? false : false} // Can enable pan with space key later
+        draggable={tool === 'hand'}
       >
         <Layer>
           <URLImage

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import dynamic from "next/dynamic";
-import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal } from 'lucide-react';
+import { Upload, Eraser, Download, RefreshCw, Undo, RotateCcw, Paintbrush, SplitSquareHorizontal, X, Square, Lasso, Cpu, Zap, Wand2, Sparkles, ImageMinus, Expand, Layers, Share2, Clock, Undo2, Redo2, ChevronRight, ChevronLeft, Settings, MoreHorizontal, Hand, Trash2 } from 'lucide-react';
 import { InpaintingCanvasHandle, ToolType } from "../components/InpaintingCanvas";
 
 // Dynamic imports for canvas components
@@ -37,6 +37,7 @@ export default function Home() {
 
   // History for undo
   const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const canvasRef = useRef<InpaintingCanvasHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +76,7 @@ export default function Home() {
     setImageSrc(url);
     setMaskBlob(null);
     setHistory([url]);
+    setHistoryIndex(0);
   }, []);
 
   // Helper to compress image if too large (Vercel 4.5MB limit)
@@ -224,7 +226,18 @@ export default function Home() {
         case 'Z':
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            handleUndo();
+            if (e.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+          }
+          break;
+        case 'y':
+        case 'Y':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            handleRedo();
           }
           break;
         case 'b':
@@ -234,6 +247,10 @@ export default function Home() {
         case 'e':
         case 'E':
           setTool('eraser');
+          break;
+        case 'h':
+        case 'H':
+          setTool('hand');
           break;
         case 'r':
         case 'R':
@@ -354,7 +371,11 @@ export default function Home() {
       // Update state for continuous editing
       setImageSrc(newUrl);
       setImageFile(new File([newImageBlob], "cleaned.png", { type: "image/png" }));
-      setHistory((prev) => [...prev, newUrl]);
+
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(newUrl);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
 
       // Clear lines on canvas
       if (canvasRef.current) {
@@ -374,12 +395,11 @@ export default function Home() {
   };
 
   const handleUndo = () => {
-    if (history.length <= 1) return;
-    const newHistory = [...history];
-    newHistory.pop(); // Remove current
-    const previousUrl = newHistory[newHistory.length - 1];
+    if (historyIndex <= 0) return;
+    const newIndex = historyIndex - 1;
+    const previousUrl = history[newIndex];
 
-    setHistory(newHistory);
+    setHistoryIndex(newIndex);
     setImageSrc(previousUrl);
     // We also need to update imageFile if we want next clean to work on previous image.
     // Fetch blob from URL to recreate File object
@@ -394,10 +414,30 @@ export default function Home() {
     }
   };
 
+  const handleRedo = () => {
+    if (historyIndex >= history.length - 1) return;
+    const newIndex = historyIndex + 1;
+    const nextUrl = history[newIndex];
+
+    setHistoryIndex(newIndex);
+    setImageSrc(nextUrl);
+
+    fetch(nextUrl)
+      .then(r => r.blob())
+      .then(blob => {
+        setImageFile(new File([blob], "restored.png", { type: "image/png" }));
+      });
+
+    if (canvasRef.current) {
+      canvasRef.current.clearLines();
+    }
+  };
+
   const handleReset = () => {
     if (history.length > 0) {
       const first = history[0];
       setHistory([first]);
+      setHistoryIndex(0);
       setImageSrc(first);
       fetch(first)
         .then(r => r.blob())
@@ -490,7 +530,11 @@ export default function Home() {
       const newUrl = URL.createObjectURL(response.data);
       setImageSrc(newUrl);
       setImageFile(new File([response.data], "no-bg.png", { type: "image/png" }));
-      setHistory((prev) => [...prev, newUrl]);
+
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(newUrl);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
 
       if (canvasRef.current) {
         canvasRef.current.clearLines();
@@ -529,7 +573,11 @@ export default function Home() {
       setBeforeImage(imageSrc);
       setImageSrc(newUrl);
       setImageFile(new File([response.data], "new-bg.png", { type: "image/png" }));
-      setHistory((prev) => [...prev, newUrl]);
+
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(newUrl);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
       setShowComparison(true);
 
       if (canvasRef.current) {
@@ -570,7 +618,11 @@ export default function Home() {
       setBeforeImage(imageSrc);
       setImageSrc(newUrl);
       setImageFile(new File([response.data], "outpainted.png", { type: "image/png" }));
-      setHistory((prev) => [...prev, newUrl]);
+
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(newUrl);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
       setShowOutpaint(false);
       setShowComparison(true);
 
@@ -725,6 +777,14 @@ export default function Home() {
         {/* Tool Toggle */}
         <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
           <button
+            onClick={() => setTool('hand')}
+            className={`p-2 rounded-lg transition ${tool === 'hand' ? 'bg-yellow-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Pan Tool (H)"
+          >
+            <Hand size={18} />
+          </button>
+          <div className="w-px h-6 bg-neutral-600 mx-1"></div>
+          <button
             onClick={() => setTool('brush')}
             className={`p-2 rounded-lg transition ${tool === 'brush' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:text-white'}`}
             title="Brush (B)"
@@ -769,6 +829,14 @@ export default function Home() {
             title="Redo Mask Stroke (Ctrl+Y)"
           >
             <Redo2 size={18} />
+          </button>
+          <div className="w-px h-6 bg-neutral-600 mx-1"></div>
+          <button
+            onClick={() => canvasRef.current?.clearLines()}
+            className="p-2 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-neutral-600 transition"
+            title="Clear Mask"
+          >
+            <Trash2 size={18} />
           </button>
         </div>
 
@@ -917,7 +985,7 @@ export default function Home() {
               className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm"
             >
               <option value="png">PNG</option>
-              <option value="jpeg">JPEG</option>
+              <option value="jpeg">JPG</option>
               <option value="webp">WebP</option>
             </select>
 
