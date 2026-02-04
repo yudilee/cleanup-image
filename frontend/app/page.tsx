@@ -1125,66 +1125,64 @@ export default function Home() {
           </div>
 
 
-          {imageSrc && (
-            <>
-              <div className="w-px h-8 bg-neutral-600 mx-1"></div>
-              {/* Magic Tools */}
-              <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1 relative group">
-                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
-                  Magic Tools
-                </span>
-                <button
-                  onClick={handleAutoDetect}
-                  disabled={aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
-                  title="Auto-detect"
-                >
-                  <Wand2 size={16} />
-                </button>
-                <button
-                  onClick={handleRefineEdges}
-                  disabled={!maskBlob || aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-                  title="Refine edges"
-                >
-                  <Sparkles size={16} />
-                </button>
-                <button
-                  onClick={handleRemoveBackground}
-                  disabled={aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
-                  title="Remove background"
-                >
-                  <ImageMinus size={16} />
-                </button>
-                <label
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
-                  title="New BG"
-                >
-                  <Upload size={16} />
-                  <input
-                    ref={bgInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleReplaceBackground(e.target.files[0]);
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  onClick={() => setShowOutpaint(true)}
-                  disabled={aiLoading !== null || loading}
-                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
-                  title="Extend"
-                >
-                  <Expand size={16} />
-                </button>
-              </div>
-            </>
-          )}
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+          {/* Magic Tools */}
+          <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1 relative group">
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
+              Magic Tools
+            </span>
+            <button
+              onClick={handleAutoDetect}
+              disabled={!imageFile || aiLoading !== null || loading}
+              className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'} ${!imageFile && 'opacity-50 cursor-not-allowed'}`}
+              title="Auto-detect"
+            >
+              <Wand2 size={16} />
+            </button>
+            <button
+              onClick={handleRefineEdges}
+              disabled={!maskBlob || aiLoading !== null || loading}
+              className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+              title="Refine edges"
+            >
+              <Sparkles size={16} />
+            </button>
+            <button
+              onClick={handleRemoveBackground}
+              disabled={!imageFile || aiLoading !== null || loading}
+              className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'} ${!imageFile && 'opacity-50 cursor-not-allowed'}`}
+              title="Remove background"
+            >
+              <ImageMinus size={16} />
+            </button>
+            <label
+              className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'} ${!imageFile ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+              title="New BG"
+            >
+              <Upload size={16} />
+              <input
+                ref={bgInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={!imageFile}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleReplaceBackground(e.target.files[0]);
+                  }
+                }}
+              />
+            </label>
+            <button
+              onClick={() => setShowOutpaint(true)}
+              disabled={!imageFile || aiLoading !== null || loading}
+              className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'} ${!imageFile && 'opacity-50 cursor-not-allowed'}`}
+              title="Extend"
+            >
+              <Expand size={16} />
+            </button>
+          </div>
+
 
           <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
