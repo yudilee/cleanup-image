@@ -92,27 +92,29 @@ class ModelManager:
             
         return models
 
-    def process(self, image: Image.Image, mask: Image.Image, model_id: str = "lama") -> Image.Image:
+    def process(self, image: Image.Image, mask: Image.Image, model_id: str = "lama") -> tuple[Image.Image, str]:
         """
-        Process the image with the specified model.
+        Process the image with the specified model. Returns (ResultImage, ActualModelID)
         """
+        actual_model = model_id
+        
         if model_id == "sdxl":
             if self.device != "cuda":
                 print("Warning: SDXL requested but running on CPU. Falling back to LaMa.")
-                model_id = "lama"
+                actual_model = "lama"
             else:
                 # Lazy load SDXL
                 try:
                     self._load_sdxl()
                 except Exception as e:
                     print(f"Failed to load SDXL: {e}. Falling back to LaMa.")
-                    model_id = "lama"
+                    actual_model = "lama"
 
         # Dispatch
-        if model_id == "sdxl":
-            return self._process_sdxl(image, mask)
+        if actual_model == "sdxl":
+            return self._process_sdxl(image, mask), "sdxl"
         else:
-            return self._process_lama(image, mask)
+            return self._process_lama(image, mask), "lama"
 
     def _process_lama(self, image, mask):
         return self.models["lama"](image, mask)

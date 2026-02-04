@@ -447,6 +447,7 @@ export default function Home() {
       // 2. Poll Status
       let resultBlob: Blob | null = null;
       let failureCount = 0;
+      let executionMetadata: any = null;
 
       while (true) {
         await new Promise(r => setTimeout(r, 2000)); // Wait 2s
@@ -465,6 +466,10 @@ export default function Home() {
               headers: { 'ngrok-skip-browser-warning': 'true' }
             });
             resultBlob = resultRes.data;
+            executionMetadata = {
+              model_used: statusRes.data.model_used,
+              execution_time: statusRes.data.execution_time
+            };
             break;
           } else if (status === 'failed') {
             throw new Error(statusRes.data.error || "Job failed");
@@ -500,6 +505,15 @@ export default function Home() {
 
       // Show comparison after successful clean
       setShowComparison(true);
+
+      // Feedback on model usage
+      if (executionMetadata?.model_used === 'sdxl') {
+        // simple toast or just console implementation for now, user asked "how do i know"
+        // Let's use a non-blocking notification or update a status text
+        setDeviceInfo(`Idle (Last: SDXL in ${executionMetadata.execution_time})`);
+      } else if (executionMetadata?.execution_time) {
+        setDeviceInfo(`Idle (Last: ${executionMetadata.model_used} in ${executionMetadata.execution_time})`);
+      }
 
     } catch (error: any) {
       console.error("Error processing image:", error);

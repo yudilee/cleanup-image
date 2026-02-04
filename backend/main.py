@@ -46,8 +46,11 @@ def process_inpaint_job(job_id: str, image_pil: Image.Image, mask_pil: Image.Ima
             image_pil = image_pil.resize((new_w, new_h), Image.LANCZOS)
             mask_pil = mask_pil.resize((new_w, new_h), Image.NEAREST)
 
-        # Process
-        result_pil = inpainting_model.process(image_pil, mask_pil, model_id=model_id)
+        import time
+        start_time = time.time()
+        
+        # Process - ModelManager now returns (image, actual_model_id)
+        result_pil, actual_model = inpainting_model.process(image_pil, mask_pil, model_id=model_id)
 
         # Resize back to original size if we downscaled
         if result_pil.size != original_size:
@@ -58,17 +61,24 @@ def process_inpaint_job(job_id: str, image_pil: Image.Image, mask_pil: Image.Ima
         result_pil.save(output, format="PNG")
         output.seek(0)
         
+        elapsed = time.time() - start_time
+        
         JOBS[job_id] = {
             "status": "completed",
             "result": output.read(),
-            "error": None
+            "error": None,
+            "metadata": {
+                "model_used": actual_model,
+                "execution_time": f"{elapsed:.2f}s"
+            }
         }
     except Exception as e:
         print(f"Job {job_id} failed: {e}")
         JOBS[job_id] = {
             "status": "failed",
             "result": None,
-            "error": str(e)
+            "error": str(e),
+            "metadata": {}
         }
 
 def get_rembg_session():
@@ -128,7 +138,7 @@ async def inpaint(
     
     # Store job
     job_id = str(uuid.uuid4())
-    JOBS[job_id] = {"status": "processing", "result": None, "error": None}
+    JOBS[job_id] = {"status": "processing", "result": None, "error": None, "metadata": {}}
     
     # Run in background
     background_tasks.add_task(process_inpaint_job, job_id, image_pil, mask_pil, max_dim, original_size, model)
@@ -141,7 +151,13 @@ def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     
     job = JOBS[job_id]
-    return {"job_id": job_id, "status": job["status"], "error": job["error"]}
+    return {
+        "job_id": job_id, 
+        "status": job["status"], 
+        "error": job["error"],
+        "model_used": job.get("metadata", {}).get("model_used"),
+        "execution_time": job.get("metadata", {}).get("execution_time")
+    }
 
 @app.get("/results/{job_id}")
 def get_job_result(job_id: str):
