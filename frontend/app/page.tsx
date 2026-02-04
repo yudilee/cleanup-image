@@ -848,126 +848,191 @@ export default function Home() {
       </p>
 
       {/* Toolbar */}
-      <div className="flex gap-2 mb-6 bg-neutral-800 p-3 rounded-xl shadow-lg border border-neutral-700 max-w-[95vw] overflow-x-auto pb-4 items-center">
-        <label className="p-2 rounded-lg hover:bg-neutral-700 cursor-pointer text-blue-400 transition" title="Upload Image">
-          <Upload size={20} />
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-        </label>
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 mb-6 w-full max-w-[95vw] items-center">
 
-        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+        {/* Row 1: Drawing & Navigation */}
+        <div className="flex gap-2 bg-neutral-800 p-3 rounded-xl shadow-lg border border-neutral-700 w-full overflow-x-auto items-center justify-center">
+          {/* Zoom Controls (Moved from bottom) */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => canvasRef.current?.zoomOut()}
+              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+              title="Zoom Out"
+            >
+              <ZoomOut size={20} />
+            </button>
 
-        <div className="flex items-center gap-2" title="Brush Size">
-          <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
-          <input
-            type="range"
-            min="5"
-            max="100"
-            value={brushSize}
-            onChange={(e) => setBrushSize(Number(e.target.value))}
-            className="w-20 accent-purple-500"
-          />
-          <div className="w-4 h-4 rounded-full bg-white"></div>
+            <span className="text-xs text-neutral-400 w-10 text-center select-none font-mono">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+
+            <button
+              onClick={() => canvasRef.current?.zoomIn()}
+              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+              title="Zoom In"
+            >
+              <ZoomIn size={20} />
+            </button>
+
+            <button
+              onClick={() => canvasRef.current?.resetZoom()}
+              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+              title="Reset Zoom"
+            >
+              <Maximize size={20} />
+            </button>
+          </div>
+
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+
+          {/* Brush Size */}
+          <div className="flex items-center gap-2" title="Brush Size">
+            <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+            <input
+              type="range"
+              min="5"
+              max="100"
+              value={brushSize}
+              onChange={(e) => setBrushSize(Number(e.target.value))}
+              className="w-20 accent-purple-500"
+            />
+            <div className="w-4 h-4 rounded-full bg-white"></div>
+          </div>
+
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+
+          {/* Tools */}
+          <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
+            <button
+              onClick={() => setTool('hand')}
+              className={`p-2 rounded-lg transition ${tool === 'hand' ? 'bg-yellow-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              title="Pan Tool (H)"
+            >
+              <Hand size={18} />
+            </button>
+            <div className="w-px h-6 bg-neutral-600 mx-1"></div>
+            <button
+              onClick={() => setTool('brush')}
+              className={`p-2 rounded-lg transition ${tool === 'brush' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              title="Brush (B)"
+            >
+              <Paintbrush size={18} />
+            </button>
+            <button
+              onClick={() => setTool('eraser')}
+              className={`p-2 rounded-lg transition ${tool === 'eraser' ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              title="Eraser (E)"
+            >
+              <Eraser size={18} />
+            </button>
+            <button
+              onClick={() => setTool('rectangle')}
+              className={`p-2 rounded-lg transition ${tool === 'rectangle' ? 'bg-green-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              title="Rectangle Selection (R)"
+            >
+              <Square size={18} />
+            </button>
+            <button
+              onClick={() => setTool('lasso')}
+              className={`p-2 rounded-lg transition ${tool === 'lasso' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              title="Lasso Selection (L)"
+            >
+              <Lasso size={18} />
+            </button>
+          </div>
+
+          {/* Mask Actions */}
+          <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
+            <button
+              onClick={() => canvasRef.current?.undo()}
+              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
+              title="Undo Mask Stroke (Ctrl+Z)"
+            >
+              <Undo2 size={18} />
+            </button>
+            <button
+              onClick={() => canvasRef.current?.redo()}
+              className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
+              title="Redo Mask Stroke (Ctrl+Y)"
+            >
+              <Redo2 size={18} />
+            </button>
+            <div className="w-px h-6 bg-neutral-600 mx-1"></div>
+            <button
+              onClick={() => canvasRef.current?.clearLines()}
+              className="p-2 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-neutral-600 transition"
+              title="Clear Mask"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+
+          {/* Clean Button */}
+          <button
+            onClick={handleClean}
+            disabled={!maskBlob || loading}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold text-lg transition shadow-md ${maskBlob && !loading ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white' : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'}`}
+          >
+            {loading ? <RefreshCw className="animate-spin" size={24} /> : <Eraser size={24} />}
+            <span>Clean</span>
+          </button>
         </div>
 
-        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+        {/* Row 2: File & Settings */}
+        <div className="flex gap-2 bg-neutral-800 p-2 rounded-xl shadow-lg border border-neutral-700 w-full overflow-x-auto items-center justify-center">
 
-        {/* Tool Toggle */}
-        <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
-          <button
-            onClick={() => setTool('hand')}
-            className={`p-2 rounded-lg transition ${tool === 'hand' ? 'bg-yellow-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Pan Tool (H)"
-          >
-            <Hand size={18} />
-          </button>
-          <div className="w-px h-6 bg-neutral-600 mx-1"></div>
-          <button
-            onClick={() => setTool('brush')}
-            className={`p-2 rounded-lg transition ${tool === 'brush' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Brush (B)"
-          >
-            <Paintbrush size={18} />
-          </button>
-          <button
-            onClick={() => setTool('eraser')}
-            className={`p-2 rounded-lg transition ${tool === 'eraser' ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Eraser (E)"
-          >
-            <Eraser size={18} />
-          </button>
-          <button
-            onClick={() => setTool('rectangle')}
-            className={`p-2 rounded-lg transition ${tool === 'rectangle' ? 'bg-green-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Rectangle Selection (R)"
-          >
-            <Square size={18} />
-          </button>
-          <button
-            onClick={() => setTool('lasso')}
-            className={`p-2 rounded-lg transition ${tool === 'lasso' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Lasso Selection (L)"
-          >
-            <Lasso size={18} />
-          </button>
-        </div>
+          {/* Upload */}
+          <label className="p-2 rounded-lg hover:bg-neutral-700 cursor-pointer text-blue-400 transition flex items-center gap-2" title="Upload Image">
+            <Upload size={20} />
+            <span className="text-sm font-medium">Upload</span>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+          </label>
 
-        {/* Mask Undo/Redo */}
-        <div className="flex items-center gap-1 bg-neutral-700 rounded-lg p-1">
-          <button
-            onClick={() => canvasRef.current?.undo()}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
-            title="Undo Mask Stroke (Ctrl+Z)"
-          >
-            <Undo2 size={18} />
-          </button>
-          <button
-            onClick={() => canvasRef.current?.redo()}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-600 transition"
-            title="Redo Mask Stroke (Ctrl+Y)"
-          >
-            <Redo2 size={18} />
-          </button>
-          <div className="w-px h-6 bg-neutral-600 mx-1"></div>
-          <button
-            onClick={() => canvasRef.current?.clearLines()}
-            className="p-2 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-neutral-600 transition"
-            title="Clear Mask"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
-        <button
-          onClick={handleClean}
-          disabled={!maskBlob || loading}
-          className={`flex items-center gap-2 px-4 py-1 rounded-lg font-medium transition ${maskBlob && !loading ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'}`}
-        >
-          {loading ? <RefreshCw className="animate-spin" size={20} /> : <Eraser size={20} />}
-          <span>Clean</span>
-        </button>
+          {/* Image Undo/Redo */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleUndo}
+              disabled={history.length <= 1 || loading}
+              className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+              title="Undo last clean"
+            >
+              <Undo size={20} />
+            </button>
 
-        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+            <button
+              onClick={handleRedo}
+              disabled={history.length === 0 || historyIndex >= history.length - 1 || loading}
+              className={`p-2 rounded-lg transition ${historyIndex < history.length - 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <Redo2 size={20} />
+            </button>
+            <button
+              onClick={handleReset}
+              disabled={history.length <= 1 || loading}
+              className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+              title="Reset to original"
+            >
+              <RotateCcw size={20} />
+            </button>
+          </div>
 
-        {/* Settings Toggle */}
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className={`p-2 rounded-lg transition ${showSettings ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white'}`}
-          title="Toggle Settings & Advanced Tools"
-        >
-          <Settings size={20} />
-        </button>
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
-        {showSettings && (
-          <div className="flex items-center gap-4 animate-in fade-in slide-in-from-left-2 duration-200">
-            <div className="w-px h-8 bg-neutral-600 mx-1"></div>
-
+          {/* Settings Group (Always visible now) */}
+          <div className="flex items-center gap-4">
             {/* Quality Preset */}
             <div className="flex items-center gap-2 group relative">
               <Zap size={16} className="text-yellow-400" />
               <select
                 value={qualityPreset}
                 onChange={(e) => setQualityPreset(e.target.value as 'fast' | 'balanced' | 'high')}
-                className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer"
+                className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm cursor-pointer border border-neutral-600 focus:border-purple-500 outline-none"
                 title="Processing quality"
               >
                 <option value="fast">Fast (512px)</option>
@@ -977,7 +1042,7 @@ export default function Home() {
             </div>
 
             {/* Device Info */}
-            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition ${apiBaseUrl !== '/api' ? 'bg-green-900/40 text-green-400 border border-green-800' : 'bg-neutral-700/50 text-neutral-400'}`} title={apiBaseUrl !== '/api' ? `Connected to: ${apiBaseUrl}` : 'Local Backend'}>
+            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition border cursor-help ${apiBaseUrl !== '/api' ? 'bg-green-900/30 text-green-400 border-green-800' : 'bg-neutral-700/50 text-neutral-400 border-transparent'}`} title={apiBaseUrl !== '/api' ? `Connected to: ${apiBaseUrl}` : 'Local Backend'}>
               {apiBaseUrl !== '/api' ? <Link2 size={14} /> : <Cpu size={14} />}
               <span>{deviceInfo}</span>
             </div>
@@ -985,211 +1050,150 @@ export default function Home() {
             {/* Connection Settings */}
             <button
               onClick={() => setShowConnection(true)}
-              className={`p-1 rounded bg-neutral-700/50 hover:bg-neutral-600 transition ${apiBaseUrl !== '/api' ? 'text-green-400' : 'text-neutral-400'}`}
-              title="Configure Backend Connection (Colab/Remote)"
+              className={`p-2 rounded hover:bg-neutral-700 transition ${apiBaseUrl !== '/api' ? 'text-green-400' : 'text-neutral-400'}`}
+              title="Configure Backend Connection"
             >
-              <Link2 size={16} />
+              <Settings size={18} />
             </button>
-
-            {imageSrc && (
-              <>
-                <div className="w-px h-8 bg-neutral-600 mx-1"></div>
-                {/* Magic Tools */}
-                <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1">
-                  <button
-                    onClick={handleAutoDetect}
-                    disabled={aiLoading !== null || loading}
-                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
-                    title="Auto-detect"
-                  >
-                    <Wand2 size={16} />
-                  </button>
-                  <button
-                    onClick={handleRefineEdges}
-                    disabled={!maskBlob || aiLoading !== null || loading}
-                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-                    title="Refine edges"
-                  >
-                    <Sparkles size={16} />
-                  </button>
-                  <button
-                    onClick={handleRemoveBackground}
-                    disabled={aiLoading !== null || loading}
-                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
-                    title="Remove background"
-                  >
-                    <ImageMinus size={16} />
-                  </button>
-                  <label
-                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
-                    title="New BG"
-                  >
-                    <Upload size={16} />
-                    <input
-                      ref={bgInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleReplaceBackground(e.target.files[0]);
-                        }
-                      }}
-                    />
-                  </label>
-                  <button
-                    onClick={() => setShowOutpaint(true)}
-                    disabled={aiLoading !== null || loading}
-                    className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
-                    title="Extend"
-                  >
-                    <Expand size={16} />
-                  </button>
-                </div>
-              </>
-            )}
           </div>
-        )}
 
-        <button
-          onClick={handleUndo}
-          disabled={history.length <= 1 || loading}
-          className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-          title="Undo last clean"
-        >
-          <Undo size={20} />
-        </button>
 
-        <button
-          onClick={handleRedo}
-          disabled={history.length === 0 || historyIndex >= history.length - 1 || loading}
-          className={`p-2 rounded-lg transition ${historyIndex < history.length - 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-          title="Redo (Ctrl+Shift+Z)"
-        >
-          <Redo2 size={20} />
-        </button>
+          {imageSrc && (
+            <>
+              <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+              {/* Magic Tools */}
+              <div className="flex items-center gap-1 bg-neutral-900/30 rounded-lg p-1">
+                <button
+                  onClick={handleAutoDetect}
+                  disabled={aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'detect' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:bg-purple-600/50 hover:text-white'}`}
+                  title="Auto-detect"
+                >
+                  <Wand2 size={16} />
+                </button>
+                <button
+                  onClick={handleRefineEdges}
+                  disabled={!maskBlob || aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'refine' ? 'bg-blue-600 text-white' : maskBlob ? 'text-blue-300 hover:bg-blue-600/50 hover:text-white' : 'text-neutral-600 cursor-not-allowed'}`}
+                  title="Refine edges"
+                >
+                  <Sparkles size={16} />
+                </button>
+                <button
+                  onClick={handleRemoveBackground}
+                  disabled={aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'remove-bg' ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-600/50 hover:text-white'}`}
+                  title="Remove background"
+                >
+                  <ImageMinus size={16} />
+                </button>
+                <label
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm cursor-pointer ${aiLoading === 'replace-bg' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:bg-cyan-600/50 hover:text-white'}`}
+                  title="New BG"
+                >
+                  <Upload size={16} />
+                  <input
+                    ref={bgInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleReplaceBackground(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </label>
+                <button
+                  onClick={() => setShowOutpaint(true)}
+                  disabled={aiLoading !== null || loading}
+                  className={`p-2 rounded-lg transition flex items-center gap-1 text-sm ${aiLoading === 'outpaint' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:bg-amber-600/50 hover:text-white'}`}
+                  title="Extend"
+                >
+                  <Expand size={16} />
+                </button>
+              </div>
+            </>
+          )}
 
-        <div className="w-px h-8 bg-neutral-600 mx-1"></div>
+          <div className="w-px h-8 bg-neutral-600 mx-1"></div>
 
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => canvasRef.current?.zoomOut()}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
-            title="Zoom Out"
-          >
-            <ZoomOut size={20} />
-          </button>
-
-          <span className="text-xs text-neutral-400 w-10 text-center select-none font-mono">
-            {Math.round(zoomLevel * 100)}%
-          </span>
-
-          <button
-            onClick={() => canvasRef.current?.zoomIn()}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
-            title="Zoom In"
-          >
-            <ZoomIn size={20} />
-          </button>
-
-          <button
-            onClick={() => canvasRef.current?.resetZoom()}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
-            title="Reset Zoom"
-          >
-            <Maximize size={20} />
-          </button>
-        </div>
-
-        <button
-          onClick={handleReset}
-          disabled={history.length <= 1 || loading}
-          className={`p-2 rounded-lg transition ${history.length > 1 && !loading ? 'hover:bg-neutral-700 text-white' : 'text-neutral-600 cursor-not-allowed'}`}
-          title="Reset to original"
-        >
-          <RotateCcw size={20} />
-        </button>
-
-        {imageSrc && (
-          <>
-            {/* Comparison Toggle */}
-            {history.length > 1 && (
+          {/* Download & Actions */}
+          <div className="flex items-center gap-2">
+            {/* Comparison */}
+            {imageSrc && history.length > 1 && (
               <button
                 onClick={() => setShowComparison(!showComparison)}
                 className={`p-2 rounded-lg transition ${showComparison ? 'bg-blue-600 text-white' : 'hover:bg-neutral-700 text-white'}`}
-                title="Toggle Before/After comparison"
+                title="Compare"
               >
                 <SplitSquareHorizontal size={20} />
               </button>
             )}
 
-            <div className="w-px bg-neutral-600 mx-2"></div>
+            {/* Export */}
+            <div className="flex items-center gap-1 bg-neutral-900/50 rounded-lg p-1">
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'png' | 'jpeg' | 'webp')}
+                className="bg-transparent text-white text-xs px-1 py-1 outline-none cursor-pointer"
+              >
+                <option value="png">PNG</option>
+                <option value="jpeg">JPG</option>
+                <option value="webp">WebP</option>
+              </select>
 
-            {/* Export Format Selector */}
-            <select
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'png' | 'jpeg' | 'webp')}
-              className="bg-neutral-700 text-white rounded-lg px-2 py-1 text-sm"
-            >
-              <option value="png">PNG</option>
-              <option value="jpeg">JPG</option>
-              <option value="webp">WebP</option>
-            </select>
-
-            {(exportFormat === 'jpeg' || exportFormat === 'webp') && (
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-neutral-400">Q:</span>
+              {(exportFormat === 'jpeg' || exportFormat === 'webp') && (
                 <input
-                  type="range"
+                  type="number"
                   min="10"
                   max="100"
                   value={jpegQuality}
                   onChange={(e) => setJpegQuality(Number(e.target.value))}
-                  className="w-12 accent-purple-500"
+                  className="w-10 text-xs bg-neutral-800 text-center rounded border border-neutral-600"
+                  title="Quality"
                 />
-                <span className="text-neutral-400 w-6">{jpegQuality}</span>
-              </div>
-            )}
+              )}
+            </div>
+
+            <div className="w-px h-6 bg-neutral-600"></div>
 
             <button
               onClick={handleDownload}
-              className="p-2 rounded-lg hover:bg-neutral-700 text-white transition"
-              title="Download current"
+              className="p-2 rounded-lg hover:bg-neutral-700 text-white transition bg-blue-600 hover:bg-blue-500 shadow-sm"
+              title="Download"
             >
               <Download size={20} />
             </button>
 
-            {/* Batch Process Button */}
             <button
               onClick={() => setShowBatch(true)}
               className="p-2 rounded-lg hover:bg-neutral-700 text-yellow-400 transition"
-              title="Batch process multiple images"
+              title="Batch Process"
             >
               <Layers size={20} />
             </button>
 
-            {/* History Gallery Button */}
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={`p-2 rounded-lg transition ${showHistory ? 'bg-blue-600 text-white' : 'hover:bg-neutral-700 text-blue-400'}`}
-              title="Toggle history gallery"
+              title="History"
             >
               <Clock size={20} />
             </button>
 
-            {/* Share Button */}
             {canShare && (
               <button
                 onClick={handleShare}
                 className="p-2 rounded-lg hover:bg-neutral-700 text-green-400 transition"
-                title="Share image"
+                title="Share"
               >
                 <Share2 size={20} />
               </button>
             )}
-          </>
-        )}
+          </div>
+
+        </div>
 
       </div>
 
