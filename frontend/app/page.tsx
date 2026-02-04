@@ -145,10 +145,13 @@ export default function Home() {
 
   // Fetch device info on mount
   useEffect(() => {
-    axios.get(`${apiBaseUrl}/device`)
+    // Add skip-browser-warning header for ngrok
+    axios.get(`${apiBaseUrl}/device`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    })
       .then(res => setDeviceInfo(res.data.device_name))
       .catch(() => setDeviceInfo('Backend offline'));
-  }, []);
+  }, [apiBaseUrl]); // Re-run when URL changes
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -336,7 +339,9 @@ export default function Home() {
 
     try {
       // 1. Submit Job
-      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}`, formData);
+      const response = await axios.post(`${apiBaseUrl}/inpaint?quality=${qualityPreset}`, formData, {
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
       const { job_id } = response.data;
 
       // 2. Poll Status
@@ -347,13 +352,18 @@ export default function Home() {
         await new Promise(r => setTimeout(r, 2000)); // Wait 2s
 
         try {
-          const statusRes = await axios.get(`${apiBaseUrl}/jobs/${job_id}`);
+          const statusRes = await axios.get(`${apiBaseUrl}/jobs/${job_id}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+          });
           const status = statusRes.data.status;
           failureCount = 0; // Reset failure count on success
 
           if (status === 'completed') {
             // 3. Get Result
-            const resultRes = await axios.get(`${apiBaseUrl}/results/${job_id}`, { responseType: 'blob' });
+            const resultRes = await axios.get(`${apiBaseUrl}/results/${job_id}`, {
+              responseType: 'blob',
+              headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
             resultBlob = resultRes.data;
             break;
           } else if (status === 'failed') {
@@ -1398,7 +1408,14 @@ export default function Home() {
               <input
                 type="text"
                 value={apiBaseUrl}
-                onChange={(e) => setApiBaseUrl(e.target.value)}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  // Remove trailing slash if present to avoid double slashes //api
+                  if (val.length > 1 && val.endsWith('/')) {
+                    val = val.slice(0, -1);
+                  }
+                  setApiBaseUrl(val);
+                }}
                 placeholder="https://xxxx.ngrok-free.app"
                 className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 text-white focus:border-green-500 focus:outline-none"
               />
@@ -1419,7 +1436,9 @@ export default function Home() {
                   setShowConnection(false);
                   // Test connection
                   setDeviceInfo('Testing...');
-                  axios.get(`${apiBaseUrl}/device`)
+                  axios.get(`${apiBaseUrl}/device`, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                  })
                     .then(res => setDeviceInfo(res.data.device_name))
                     .catch(() => setDeviceInfo('Connection Failed'));
                 }}
